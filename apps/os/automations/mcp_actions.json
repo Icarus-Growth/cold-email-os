@@ -1,0 +1,168 @@
+{
+  "_about": "The AI connector's actions for this agency type (apps/os/automations/mcp_server.py). 'actions' is the full list the connector offers; each board says which column is its name, its stages in order, who works on it, the one 'work link' column and the columns cards.update may change. Stage names must be spelled exactly as in the database; the tests check them. 'documents' on a board and 'client_documents' name the long texts that docs.read and docs.write open: the field key (the same in the app and the database), its label, and the old link column kept for 'paste a link instead'.",
+  "actions": [
+    "my_queue",
+    "urgent",
+    "boards",
+    "cards.search",
+    "cards.get",
+    "docs.read",
+    "clients.get",
+    "team",
+    "calls.get",
+    "forms.get",
+    "metrics.get",
+    "brain.index",
+    "brain.map",
+    "brain.search",
+    "brain.read",
+    "cards.create",
+    "cards.move",
+    "cards.update",
+    "cards.note",
+    "docs.write",
+    "calls.add",
+    "metrics.add",
+    "clients.update"
+  ],
+  "boards": {
+    "tasks": {
+      "name": "task_name",
+      "stages": [
+        "-1 - Rejected",
+        "0 - Backlog",
+        "9 - Blocked",
+        "10 - In Progress",
+        "29 - Amendments",
+        "30 - In Review",
+        "100 - Complete"
+      ],
+      "people": [
+        "assignee_id",
+        "reviewer_id"
+      ],
+      "work_link": "links",
+      "fields": [
+        "due_date",
+        "notes",
+        "links"
+      ],
+      "created_by": "created_by_id"
+    },
+    "campaigns": {
+      "name": "campaign_name",
+      "stages": [
+        "0 - Backlog",
+        "10 - List Building",
+        "20 - Copywriting",
+        "29 - Copy Amendments",
+        "30 - Client Review",
+        "39 - Client Changes",
+        "40 - Ready To Launch",
+        "50 - Live",
+        "100 - Ended"
+      ],
+      "people": [
+        "assignee_id",
+        "reviewer_id"
+      ],
+      "work_link": "copy_doc_url",
+      "fields": [
+        "due_date",
+        "notes",
+        "list_url",
+        "copy_doc_url",
+        "feedback_notes"
+      ],
+      "documents": {
+        "copy_doc": {
+          "label": "Copy",
+          "link": "copy_doc_url"
+        }
+      }
+    },
+    "inbox_batches": {
+      "name": "batch_name",
+      "stages": [
+        "0 - Backlog",
+        "10 - Approval Needed",
+        "20 - Buying Domains",
+        "30 - Setting Up Inboxes",
+        "40 - Warming",
+        "100 - Ready To Send"
+      ],
+      "people": [
+        "assignee_id"
+      ],
+      "work_link": null,
+      "fields": [
+        "due_date",
+        "notes"
+      ]
+    }
+  },
+  "client_stages": [
+    "0 - Paid",
+    "10 - Contract Sent",
+    "20 - Contract Signed",
+    "30 - Set-Up",
+    "40 - Call Booked",
+    "50 - Call Taken",
+    "100 - Onboarded"
+  ],
+  "client_fields": [
+    "client_name",
+    "status",
+    "website",
+    "contact_name",
+    "contact_email",
+    "contact_phone",
+    "start_date",
+    "end_date",
+    "services",
+    "onboarding_stage",
+    "account_manager_id",
+    "drive_folder_url",
+    "notes",
+    "campaign_manager_id",
+    "target_market",
+    "offer_doc_url",
+    "copy_doc_url",
+    "sending_domains"
+  ],
+  "client_documents": {
+    "offer_doc": {
+      "label": "Offer doc",
+      "link": "offer_doc_url"
+    },
+    "copy_doc": {
+      "label": "Copy doc",
+      "link": "copy_doc_url"
+    }
+  },
+  "call_types": [
+    "Sales",
+    "Onboarding",
+    "Check-In",
+    "Internal",
+    "Other"
+  ],
+  "metrics": {
+    "daily": [
+      "emails_sent",
+      "replies",
+      "positive_replies",
+      "meetings_booked",
+      "bounces",
+      "source"
+    ],
+    "weekly": [
+      "emails_sent",
+      "replies",
+      "positive_replies",
+      "meetings_booked",
+      "bounces",
+      "note"
+    ]
+  }
+}

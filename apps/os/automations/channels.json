@@ -1,0 +1,13 @@
+{
+  "_about": "The Slack channels the automations post in. They are made for the automations; nothing is ever posted in a client channel or a channel where people talk. Filled in by tab 3 (slack_setup.py make-channels). Change a name here, then run make-channels again and redeploy. Never put a token here.",
+  "channels": {
+    "new-tasks": {"name": "new-tasks", "id": "", "who": "Owner, managers", "posts": "A new card on any board, a new client, a new form submitted"},
+    "task-updates": {"name": "task-updates", "id": "", "who": "Owner, makers", "posts": "A card is ready for its maker, blocked or rejected"},
+    "amendments": {"name": "amendments", "id": "", "who": "Owner, makers", "posts": "A card is sent back for changes, with the notes in the thread"},
+    "review": {"name": "review", "id": "", "who": "Owner, managers", "posts": "A card is ready for someone to check"},
+    "approved": {"name": "approved", "id": "", "who": "Owner, makers, managers", "posts": "A card reaches its last stage"},
+    "daily-summary": {"name": "daily-summary", "id": "", "who": "Owner, managers", "posts": "The daily summary"},
+    "pipeline-errors": {"name": "pipeline-errors", "id": "", "who": "Owner", "posts": "Any failed automation, once a day at most"},
+    "needs-a-person": {"name": "needs-a-person", "id": "", "who": "Owner", "posts": "A card reaches a stage with nobody set to do it (once a day per card). A person with no Slack account linked is not posted here: the alert names them as plain text, and Step 5 links them"}
+  }
+}

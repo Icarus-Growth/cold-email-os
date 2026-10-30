@@ -1,0 +1,14 @@
+{
+  "name": "onboarding-form",
+  "private": true,
+  "type": "module",
+  "description": "The client onboarding form. Tests run offline: npm install, then npm test.",
+  "scripts": {
+    "test": "node tests/link.test.mjs",
+    "test:browser": "node tests/browser.test.mjs",
+    "dev": "node tests/serve.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.2.17"
+  }
+}

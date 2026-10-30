@@ -1,0 +1,89 @@
+/* Tailwind, the names the screens use for the colours in theme.css, and the base styles.
+ * To change the look, change theme.css, not this file. */
+@import "tailwindcss";
+@import "./theme.css";
+
+@theme inline {
+  --font-sans: var(--font-family);
+  --font-display: var(--font-display);
+  --color-ink: var(--text-primary);
+  --color-ink2: var(--text-secondary);
+  --color-muted: var(--text-tertiary);
+  --color-faint: var(--text-placeholder);
+  --color-card: var(--bg-primary);
+  --color-ground: var(--bg-secondary);
+  --color-chrome: var(--bg-tertiary);
+  --color-chromehover: var(--bg-tertiary_hover);
+  --color-line: var(--border-primary);
+  --color-line2: var(--border-secondary);
+  --color-linehover: var(--border-primary_hover);
+  --color-primary: var(--button-primary-bg);
+  --color-primaryhover: var(--button-primary-bg-hover);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-tgood: var(--tint-good);
+  --color-twarn: var(--tint-warn);
+  --color-tbad: var(--tint-bad);
+  --color-taccent: var(--tint-accent);
+  --color-keybg: var(--os-score-key-bg);
+}
+
+html, body, #root { margin: 0; height: 100%; }
+body { font-family: var(--font-family); color: var(--text-primary); background: var(--bg-secondary);
+       -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+.nosb::-webkit-scrollbar { display: none; }
+.nosb { scrollbar-width: none; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* In @layer base so Tailwind's utilities always win over it. */
+@layer base {
+  html, body { overflow: hidden; }
+  body { font-size: 14px; }
+  #root { overflow: hidden; }
+  button { cursor: pointer; }
+  button:disabled { cursor: default; }
+  :focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+  details > summary { list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+}
+.os-boot { padding: 48px; font-family: var(--font-family); color: var(--text-tertiary); }
+body.os-resizing, body.os-resizing * { cursor: col-resize !important; user-select: none !important; }
+
+/* Rich text: what the editor and a read-only view of it look like. */
+@layer components {
+.os-rich-body { line-height: 20px; word-break: break-word; }
+.os-rich-body p { margin: 0 0 6px; }
+.os-rich-body p:last-child { margin-bottom: 0; }
+.os-rich-body ul { list-style: disc; padding-left: 20px; margin: 4px 0; }
+.os-rich-body ol { list-style: decimal; padding-left: 20px; margin: 4px 0; }
+.os-rich-body a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+.os-rich-body[contenteditable="true"]:empty::before { content: attr(data-placeholder); color: var(--text-placeholder); }
+}
+
+/* The copy editor (areas/docs): the text, and the readability marks over it. */
+@layer components {
+.os-doc { outline: none; min-height: 50vh; font-size: 15px; line-height: 26px; color: var(--text-primary); word-break: break-word; }
+.os-doc p { margin: 0 0 12px; }
+.os-doc h1 { font-family: var(--font-display); font-size: 22px; line-height: 30px; font-weight: 600; margin: 20px 0 8px; }
+.os-doc h2 { font-family: var(--font-display); font-size: 18px; line-height: 26px; font-weight: 600; margin: 18px 0 6px; }
+.os-doc h3 { font-size: 15px; font-weight: 600; margin: 14px 0 4px; }
+.os-doc > :first-child { margin-top: 0; }
+.os-doc ul { list-style: disc; padding-left: 24px; margin: 0 0 12px; }
+.os-doc ol { list-style: decimal; padding-left: 24px; margin: 0 0 12px; }
+.os-doc li p { margin: 0 0 4px; }
+.os-doc blockquote { border-left: 3px solid var(--border-primary_hover); padding-left: 12px; color: var(--text-secondary); margin: 0 0 12px; }
+.os-doc code { background: var(--bg-tertiary); border-radius: 4px; padding: 1px 4px; font-size: 13px; }
+.os-doc pre { background: var(--bg-tertiary); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; white-space: pre-wrap; }
+.os-doc hr { border: 0; border-top: 1px solid var(--border-primary); margin: 16px 0; }
+.os-doc a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+.os-doc p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--text-placeholder); float: left; height: 0; pointer-events: none; }
+.doc-mark-veryHard { background: var(--mark-very-hard); }
+.doc-mark-hard { background: var(--mark-hard); }
+.doc-mark-weak { background: var(--mark-weak); border-radius: 3px; }
+.doc-mark-simpler { background: var(--mark-simpler); border-radius: 3px; }
+.os-doc [data-why] { cursor: help; }
+.doc-flag { text-decoration: underline wavy var(--mark-flag); text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+.doc-flag-key { border-bottom: 2px solid var(--mark-flag); }
+}

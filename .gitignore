@@ -1,0 +1,10 @@
+.env
+*.env
+!.env.example
+clients/*/.env
+node_modules/
+__pycache__/
+.DS_Store
+apps/os/backend/supabase/.temp/
+.pytest_cache/
+.venv/

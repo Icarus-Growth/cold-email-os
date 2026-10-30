@@ -1,0 +1,37 @@
+# Supabase settings for this OS.
+# Push the sign-in settings to your project with:
+#   supabase config push --workdir apps/os/backend
+# Only the [auth] part matters for the live project. The rest is for a local copy.
+
+project_id = "agency-os"
+
+[api]
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+major_version = 17
+
+[auth]
+enabled = true
+# The OS address. The set-up prompt in tab 2 replaces this with yours.
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+# Nobody can make their own login. The owner adds people from the Team screen.
+enable_signup = false
+enable_anonymous_sign_ins = false
+minimum_password_length = 10
+
+[auth.email]
+# Keep this true: it turns on email and password sign-in for people you add.
+# New sign-ups are blocked by [auth] enable_signup = false above.
+enable_signup = true
+enable_confirmations = true
+secure_password_change = true
+double_confirm_changes = true
+
+[auth.external.google]
+enabled = false

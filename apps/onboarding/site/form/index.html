@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Client onboarding</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/form/styles.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <span class="wordmark" id="wordmark"></span>
+  </div>
+
+  <nav class="rail" id="rail" data-testid="progress-rail" aria-label="Progress"></nav>
+
+  <main class="card" id="card" data-testid="form-card">
+    <p class="blurb">Loading…</p>
+  </main>
+
+  <p class="save-hint" id="saveHint" data-testid="save-hint" hidden></p>
+  <p class="save-status" id="saveStatus" data-testid="save-status" role="status" aria-live="polite" hidden></p>
+
+  <footer class="brandfoot" id="footName"></footer>
+
+</div>
+
+<div class="modal-back" id="modalBack" data-testid="info-modal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3 id="modalTitle"></h3>
+    <ul id="modalBody"></ul>
+    <div class="nav" style="margin-top:22px;padding-top:18px">
+      <span class="nav-spacer"></span>
+      <button class="btn btn-ghost" id="modalClose" data-testid="info-modal-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="/form/config.js"></script>
+<script src="/form/app.js"></script>
+</body>
+</html>

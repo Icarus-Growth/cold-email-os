@@ -1,0 +1,3 @@
+site/_worker.js
+tests/out/
+node_modules/

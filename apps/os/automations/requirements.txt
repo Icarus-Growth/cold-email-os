@@ -1,0 +1,4 @@
+# Installed on your own computer, to deploy and run the automations:
+#   python3 -m pip install -r apps/os/automations/requirements.txt
+# The Modal app installs its own packages (see the image in app.py).
+modal>=1.0,<2

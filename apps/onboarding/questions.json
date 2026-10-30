@@ -1,0 +1,338 @@
+{
+  "form_key": "onboarding",
+  "form_version": "cold-email-v1",
+  "title": "Client onboarding",
+  "intro": {
+    "minutes": 20,
+    "bring": [
+      "A short description of your offer",
+      "Two or three of your best customer results",
+      "The job titles of the people who buy from you",
+      "Your booking link for sales calls"
+    ]
+  },
+  "steps": [
+    {
+      "step": 1,
+      "title": "Your details",
+      "blurb": "Who you are and how we reach you."
+    },
+    {
+      "step": 2,
+      "title": "Your offer",
+      "blurb": "What you sell and why people buy it. We write the emails from this."
+    },
+    {
+      "step": 3,
+      "title": "Who we should reach",
+      "blurb": "The companies and people we build your lists from."
+    },
+    {
+      "step": 4,
+      "title": "How we send",
+      "blurb": "Who the emails come from, and where the meetings go."
+    },
+    {
+      "step": 5,
+      "title": "Access",
+      "blurb": "The tools we need to get into. If something is not done yet, choose Not yet. We will do it with you on the call."
+    },
+    {
+      "step": 6,
+      "title": "Goals",
+      "blurb": "What good looks like for you."
+    },
+    {
+      "step": 7,
+      "title": "Review",
+      "blurb": "Check your answers. Nothing is sent until you press Submit."
+    }
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "id": "full_name",
+      "label": "Your name",
+      "type": "short_text",
+      "required": true,
+      "placeholder": "e.g. Sam Taylor",
+      "prefill": "name"
+    },
+    {
+      "step": 1,
+      "id": "email",
+      "label": "Your email",
+      "type": "email",
+      "required": true,
+      "placeholder": "e.g. sam@example.com",
+      "prefill": "email",
+      "help": "We send updates about your account to this address."
+    },
+    {
+      "step": 1,
+      "id": "phone",
+      "label": "Best phone number for business",
+      "type": "short_text",
+      "required": false,
+      "placeholder": "e.g. +1 555 010 0100",
+      "prefill": "phone"
+    },
+    {
+      "step": 1,
+      "id": "company_name",
+      "label": "Company name",
+      "type": "short_text",
+      "required": true,
+      "placeholder": "e.g. Example Co",
+      "prefill": "company"
+    },
+    {
+      "step": 1,
+      "id": "website",
+      "label": "Company website",
+      "type": "url",
+      "required": true,
+      "placeholder": "e.g. example.com",
+      "none_option": {
+        "label": "We do not have a website yet",
+        "value": "No website yet"
+      }
+    },
+    {
+      "step": 1,
+      "id": "team_contacts",
+      "label": "Who else on your team should we talk to?",
+      "type": "long_text",
+      "required": false,
+      "rows": 3,
+      "help": "Name, job title and email for each person. Put each person on a new line.",
+      "placeholder": "e.g. Alex Kim, Head of Sales, alex@example.com"
+    },
+    {
+      "step": 2,
+      "id": "offer_summary",
+      "label": "What do you sell?",
+      "type": "long_text",
+      "required": true,
+      "rows": 5,
+      "help": "Describe your main offer as you would to a new customer. What do they get, and how does it work?"
+    },
+    {
+      "step": 2,
+      "id": "main_result",
+      "label": "What result do your customers get?",
+      "type": "long_text",
+      "required": true,
+      "help": "Use numbers if you can. For example: more booked calls in 60 days, or hours saved each week."
+    },
+    {
+      "step": 2,
+      "id": "case_studies",
+      "label": "Your best results with customers",
+      "type": "long_text",
+      "required": true,
+      "rows": 5,
+      "help": "Two or three short stories or links. Who was the customer, what was the problem, and what changed?"
+    },
+    {
+      "step": 2,
+      "id": "proof",
+      "label": "Why should a stranger trust you?",
+      "type": "long_text",
+      "required": false,
+      "help": "Well-known customers, years in business, awards, numbers of customers served."
+    },
+    {
+      "step": 2,
+      "id": "guarantee",
+      "label": "Do you give a guarantee or a free trial?",
+      "type": "long_text",
+      "required": false
+    },
+    {
+      "step": 3,
+      "id": "icp_industries",
+      "label": "Which industries do your best customers work in?",
+      "type": "long_text",
+      "required": true
+    },
+    {
+      "step": 3,
+      "id": "icp_company_size",
+      "label": "How big are the companies you sell to?",
+      "type": "multi_select",
+      "required": true,
+      "options": [
+        "1 to 10 people",
+        "11 to 50 people",
+        "51 to 200 people",
+        "201 to 1,000 people",
+        "More than 1,000 people"
+      ]
+    },
+    {
+      "step": 3,
+      "id": "icp_locations",
+      "label": "Which countries or regions should we target?",
+      "type": "short_text",
+      "required": true,
+      "placeholder": "e.g. United States and Canada"
+    },
+    {
+      "step": 3,
+      "id": "icp_titles",
+      "label": "Which job titles make the decision to buy?",
+      "type": "long_text",
+      "required": true,
+      "placeholder": "e.g. Founder, Head of Operations, Sales Director"
+    },
+    {
+      "step": 3,
+      "id": "icp_pains",
+      "label": "What problems make these people need you?",
+      "type": "long_text",
+      "required": true,
+      "rows": 5
+    },
+    {
+      "step": 3,
+      "id": "exclusions",
+      "label": "Who must we never contact?",
+      "type": "long_text",
+      "required": false,
+      "help": "Current customers, partners, competitors or anyone else. Names or website addresses."
+    },
+    {
+      "step": 4,
+      "id": "services",
+      "label": "Which outreach have you signed up for?",
+      "type": "multi_select",
+      "required": true,
+      "options": [
+        "Cold email",
+        "LinkedIn outreach",
+        "Cold calling"
+      ]
+    },
+    {
+      "step": 4,
+      "id": "linkedin_profile",
+      "label": "The LinkedIn profile we send from",
+      "type": "url",
+      "required": true,
+      "show_if": {
+        "question": "services",
+        "includes": "LinkedIn outreach"
+      },
+      "placeholder": "e.g. linkedin.com/in/your-name"
+    },
+    {
+      "step": 4,
+      "id": "sender_names",
+      "label": "Who should the emails come from?",
+      "type": "long_text",
+      "required": true,
+      "help": "Name and job title for each sender. Most clients use two or three people."
+    },
+    {
+      "step": 4,
+      "id": "booking_link",
+      "label": "Your booking link for sales calls",
+      "type": "url",
+      "required": true,
+      "placeholder": "e.g. a Calendly or Cal.com link",
+      "none_option": {
+        "label": "We do not have a booking link yet",
+        "value": "No booking link yet"
+      }
+    },
+    {
+      "step": 4,
+      "id": "weekly_call_capacity",
+      "label": "How many sales calls can you take each week?",
+      "type": "short_text",
+      "required": false
+    },
+    {
+      "step": 5,
+      "id": "crm_name",
+      "label": "Which CRM do you use?",
+      "type": "short_text",
+      "required": false,
+      "placeholder": "e.g. HubSpot, Pipedrive, or none"
+    },
+    {
+      "step": 5,
+      "id": "access_crm",
+      "label": "Add us as a user in your CRM",
+      "type": "checkbox",
+      "required": false,
+      "help": "Use the email address in our welcome message. This lets us add new meetings and leads for you."
+    },
+    {
+      "step": 5,
+      "id": "access_calendar",
+      "label": "Add our team to the calendar where sales calls are booked",
+      "type": "checkbox",
+      "required": false
+    },
+    {
+      "step": 5,
+      "id": "access_notes",
+      "label": "Is there any access you cannot give us yet?",
+      "type": "long_text",
+      "required": false,
+      "help": "Tell us what it is and why. For example, the login belongs to someone who is away. We will sort it out with you on the onboarding call."
+    },
+    {
+      "step": 6,
+      "id": "goal_90_days",
+      "label": "What would make the first 90 days a success for you?",
+      "type": "long_text",
+      "required": true,
+      "help": "For example, a number of booked meetings or new customers."
+    },
+    {
+      "step": 6,
+      "id": "meetings_target",
+      "label": "How many new sales meetings a month would you like?",
+      "type": "short_text",
+      "required": false
+    },
+    {
+      "step": 6,
+      "id": "worries",
+      "label": "Is there anything you are worried about?",
+      "type": "long_text",
+      "required": false,
+      "help": "For example, something that went wrong with an agency before. We would rather know now."
+    },
+    {
+      "step": 6,
+      "id": "anything_else",
+      "label": "Anything else we should know before the onboarding call?",
+      "type": "long_text",
+      "required": false
+    }
+  ],
+  "done": {
+    "heading": "That's everything. Thank you.",
+    "blurb": "Your answers are in. We read them before your onboarding call, so the call starts with your business and not with questions you have already answered.",
+    "next": {
+      "heading": "What happens next",
+      "items": [
+        "We read your answers and prepare for the onboarding call.",
+        "On the call we go through any access that is not done yet, and any answer you were not sure about.",
+        "Then we set up your sending domains and inboxes, build your first list and write the first emails."
+      ]
+    },
+    "links": [
+      {
+        "heading": "Book your onboarding call",
+        "body": "Choose a time that suits you.",
+        "cta": "Book the call",
+        "url": ""
+      }
+    ]
+  }
+}

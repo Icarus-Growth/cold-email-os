@@ -1,0 +1,65 @@
+/* The look of the OS: every colour, font and corner in one file.
+ * Change the values here to make the OS your own. Nothing else names a colour.
+ * Keep the status colours (good, warn, bad) far from your brand colour, so a late card never
+ * looks like the thing to click. */
+:root {
+  /* -- 1. The brand colour: the one filled button per page, the mark, the ticks. */
+  --button-primary-bg:       #2b3240;
+  --button-primary-bg-hover: #3a4354;
+  --text-brand:              #2b3240;
+  --border-brand:            #2b3240;
+  --border-focus:            #6b8afd;
+  --focus-ring:              rgba(107, 138, 253, 0.25);
+
+  /* -- 2. Surfaces. */
+  --bg-primary:        #ffffff;   /* cards, panels */
+  --bg-secondary:      #f6f7f9;   /* the page ground */
+  --bg-tertiary:       #eceef2;   /* counts, chips */
+  --bg-tertiary_hover: #e2e5eb;
+
+  /* -- 3. Ink. */
+  --text-primary:     #1d222c;   /* headings, names */
+  --text-secondary:   #3b4352;
+  --text-tertiary:    #687183;   /* body notes */
+  --text-placeholder: #9aa2b1;
+  --text-white:       #ffffff;
+
+  /* -- 4. Lines. */
+  --border-primary:       #e3e6eb;
+  --border-secondary:     #eef0f3;
+  --border-primary_hover: #cfd4dc;
+
+  /* -- 5. Status. Never the brand colour. */
+  --good: #16a34a;
+  --warn: #d97706;
+  --bad:  #dc2626;
+  --tint-good: rgba(22, 163, 74, 0.12);
+  --tint-bad:  rgba(220, 38, 38, 0.12);
+  --tint-warn: rgba(217, 119, 6, 0.12);
+  --tint-accent: rgba(43, 50, 64, 0.07);
+  /* The copy editor's readability marks (red, yellow, blue, purple) and cold email flags. */
+  --mark-very-hard: rgba(239, 68, 68, 0.22);
+  --mark-hard:      rgba(234, 179, 8, 0.28);
+  --mark-weak:      rgba(59, 130, 246, 0.20);
+  --mark-simpler:   rgba(147, 51, 234, 0.18);
+  --mark-flag:      #dc2626;
+  --text-success: #15803d;
+  --os-danger: #c62828;
+
+  /* -- 6. One colour per client, the same on every card and chart. */
+  --os-c1: #4e79a7; --os-c2: #f28e2b; --os-c3: #59a14f; --os-c4: #b07aa1; --os-c5: #76b7b2;
+  --os-c6: #edc948; --os-c7: #8cd17d; --os-c8: #9c755f; --os-c9: #ff9da7; --os-c10: #86bcb6;
+  /* The key scorecards' background. */
+  --os-score-key-bg: #eef2ff;
+
+  /* -- 7. The dim layer behind a dialog. */
+  --overlay:       rgba(17, 22, 32, 0.35);
+  --overlay-light: rgba(17, 22, 32, 0.25);
+
+  /* -- 8. Type and shadows. */
+  --font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 1px 10px 0 rgba(0, 0, 0, 0.10);
+  --shadow-xl: 0 3px 16px 0 rgba(0, 0, 0, 0.12);
+}

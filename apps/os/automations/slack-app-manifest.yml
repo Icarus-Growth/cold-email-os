@@ -1,0 +1,35 @@
+# The Slack app for the Cold Email agency OS. Paste all of this at https://api.slack.com/apps
+# -> Create New App -> From a manifest -> pick your workspace -> YAML.
+# It asks only for what the automations need:
+#   chat:write, chat:write.customize   post messages, each with its own name and the logo
+#   channels:manage, groups:write      make the automation channels and invite people to them
+#   channels:read, groups:read         list channels, to link each client to theirs
+#   channels:join                      join an automation channel you made by hand
+#   users:read, users:read.email       find each team member by their email
+#   im:write                           send a new team member their sign-in details
+# Tab 3 adds the button address (Interactivity) after the Modal app is deployed.
+display_information:
+  name: Cold Email OS
+  description: Posts the OS alerts and the daily summary in the automation channels.
+  background_color: "#1f2937"
+features:
+  bot_user:
+    display_name: Cold Email OS
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - chat:write.customize
+      - channels:manage
+      - channels:read
+      - channels:join
+      - groups:read
+      - groups:write
+      - users:read
+      - users:read.email
+      - im:write
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

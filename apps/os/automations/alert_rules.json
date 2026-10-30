@@ -1,0 +1,259 @@
+{
+  "_about": "One rule list for every board. When a card is added or moves, the first rule that matches decides the channel (a key in channels.json), the bot name and emoji, who is tagged (the first one filled in: assignee, reviewer, owner, or client.<role column>) and the one thing they must do. 'thread' puts that column of the card in a thread reply. No rule, no post. A stage name here must be spelled exactly as in the database.",
+  "boards": {
+    "tasks": {
+      "label": "Tasks",
+      "final": [
+        "100 - Complete",
+        "-1 - Rejected"
+      ]
+    },
+    "campaigns": {
+      "label": "Campaigns",
+      "final": [
+        "50 - Live",
+        "100 - Ended"
+      ]
+    },
+    "inbox_batches": {
+      "label": "Inbox batches",
+      "final": [
+        "100 - Ready To Send"
+      ],
+      "link": "client"
+    }
+  },
+  "client_roles": [
+    "account_manager_id",
+    "campaign_manager_id"
+  ],
+  "rules": [
+    {
+      "board": "*",
+      "when": "new",
+      "channel": "new-tasks",
+      "bot_name": "New Card",
+      "emoji": "🆕",
+      "tag": [
+        "assignee",
+        "client.account_manager_id",
+        "owner"
+      ],
+      "action": "Check the card, then give it a person and a due date if it has none."
+    },
+    {
+      "board": "tasks",
+      "to": [
+        "9 - Blocked"
+      ],
+      "channel": "task-updates",
+      "bot_name": "Task Blocked",
+      "emoji": "🧱",
+      "tag": [
+        "client.account_manager_id",
+        "owner"
+      ],
+      "action": "Help unblock this task. The notes on the card say what is in the way.",
+      "thread": "notes"
+    },
+    {
+      "board": "tasks",
+      "to": [
+        "-1 - Rejected"
+      ],
+      "channel": "task-updates",
+      "bot_name": "Task Rejected",
+      "emoji": "🚫",
+      "tag": [
+        "assignee"
+      ],
+      "action": "This task will not be done. Stop work on it.",
+      "thread": "notes"
+    },
+    {
+      "board": "tasks",
+      "to": [
+        "29 - Amendments"
+      ],
+      "channel": "amendments",
+      "bot_name": "Needs Amendments",
+      "emoji": "✏️",
+      "tag": [
+        "assignee"
+      ],
+      "action": "Make the changes, then move the card back to review.",
+      "thread": "notes"
+    },
+    {
+      "board": "tasks",
+      "to": [
+        "30 - In Review"
+      ],
+      "channel": "review",
+      "bot_name": "Ready For Review",
+      "emoji": "👀",
+      "tag": [
+        "reviewer",
+        "client.account_manager_id",
+        "owner"
+      ],
+      "action": "Check the work, then move it to Complete or send it back."
+    },
+    {
+      "board": "tasks",
+      "to": [
+        "100 - Complete"
+      ],
+      "channel": "approved",
+      "bot_name": "Task Complete",
+      "emoji": "🙌",
+      "tag": [
+        "assignee"
+      ],
+      "action": "Nothing more to do. Well done."
+    },
+    {
+      "board": "campaigns",
+      "to": [
+        "10 - List Building"
+      ],
+      "channel": "task-updates",
+      "bot_name": "List To Build",
+      "emoji": "📋",
+      "tag": [
+        "assignee",
+        "client.campaign_manager_id"
+      ],
+      "action": "Build the list for this campaign, then move it to Copywriting."
+    },
+    {
+      "board": "campaigns",
+      "to": [
+        "20 - Copywriting"
+      ],
+      "channel": "task-updates",
+      "bot_name": "Ready For Copy",
+      "emoji": "✍️",
+      "tag": [
+        "assignee",
+        "client.campaign_manager_id"
+      ],
+      "action": "Write the copy, then move the card to Client Review."
+    },
+    {
+      "board": "campaigns",
+      "to": [
+        "29 - Copy Amendments"
+      ],
+      "channel": "amendments",
+      "bot_name": "Copy Amendments",
+      "emoji": "✏️",
+      "tag": [
+        "assignee",
+        "client.campaign_manager_id"
+      ],
+      "action": "Fix the copy, then move the card on.",
+      "thread": "feedback_notes"
+    },
+    {
+      "board": "campaigns",
+      "to": [
+        "30 - Client Review"
+      ],
+      "channel": "review",
+      "bot_name": "Copy For Client Review",
+      "emoji": "👀",
+      "tag": [
+        "client.account_manager_id",
+        "reviewer",
+        "owner"
+      ],
+      "action": "Send the copy to the client, then move the card when they answer."
+    },
+    {
+      "board": "campaigns",
+      "to": [
+        "39 - Client Changes"
+      ],
+      "channel": "amendments",
+      "bot_name": "Client Changes",
+      "emoji": "🔁",
+      "tag": [
+        "assignee",
+        "client.campaign_manager_id"
+      ],
+      "action": "Make the client's changes, then send it back to them.",
+      "thread": "feedback_notes"
+    },
+    {
+      "board": "campaigns",
+      "to": [
+        "40 - Ready To Launch"
+      ],
+      "channel": "task-updates",
+      "bot_name": "Ready To Launch",
+      "emoji": "🚀",
+      "tag": [
+        "client.campaign_manager_id",
+        "assignee"
+      ],
+      "action": "Launch the campaign, then move it to Live."
+    },
+    {
+      "board": "campaigns",
+      "to": [
+        "50 - Live"
+      ],
+      "channel": "approved",
+      "bot_name": "Campaign Live",
+      "emoji": "🙌",
+      "tag": [
+        "client.account_manager_id",
+        "owner"
+      ],
+      "action": "Tell the client it is live."
+    },
+    {
+      "board": "campaigns",
+      "to": [
+        "100 - Ended"
+      ],
+      "channel": "approved",
+      "bot_name": "Campaign Ended",
+      "emoji": "🏁",
+      "tag": [
+        "client.account_manager_id",
+        "owner"
+      ],
+      "action": "Send the client the end-of-campaign numbers."
+    },
+    {
+      "board": "inbox_batches",
+      "to": [
+        "10 - Approval Needed"
+      ],
+      "channel": "review",
+      "bot_name": "Inboxes Need Approval",
+      "emoji": "✅",
+      "tag": [
+        "client.account_manager_id",
+        "owner"
+      ],
+      "action": "Approve the domains and inboxes to buy, then move the batch on."
+    },
+    {
+      "board": "inbox_batches",
+      "to": [
+        "100 - Ready To Send"
+      ],
+      "channel": "approved",
+      "bot_name": "Inboxes Ready",
+      "emoji": "📬",
+      "tag": [
+        "client.campaign_manager_id",
+        "client.account_manager_id"
+      ],
+      "action": "The inboxes are warm. Campaigns for this client can send."
+    }
+  ]
+}
