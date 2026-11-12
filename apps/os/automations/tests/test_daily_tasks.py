@@ -78,3 +78,10 @@ def test_live_cards_are_never_late_or_stuck_but_stay_on_the_list():
     assert act_today([live], {"stuck_after_days": 3}, CFG, TUESDAY_8, today) == []
     (key, card, why), = pending_by_person([live], CFG, today, TUESDAY_8, 3)["t-maker"]
     assert why == "live" and key[0] == 5  # with the rest, never "late" (0) or "stuck" (4)
+
+
+def test_a_card_off_my_work_gets_no_morning_line():
+    card = {"board": "tasks", "card_id": "flow1", "card_name": "Live flow", "client_id": "c-1", "stage": "10 - In Progress",
+            "assignee_id": "t-maker", "due_date": "2026-10-01", "on_my_work": False}  # fmt: skip
+    assert pending_by_person([card], CFG, TUESDAY_8.date(), TUESDAY_8, 3) == {}
+    assert pending_by_person([dict(card, on_my_work=None)], CFG, TUESDAY_8.date(), TUESDAY_8, 3)  # before 0023: kept

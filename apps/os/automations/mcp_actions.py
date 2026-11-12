@@ -387,9 +387,10 @@ def ranked(ctx: Context, cards: List[Dict[str, Any]], me: Optional[str]) -> List
 
 def my_queue(ctx: Context, page: int = 1) -> Dict[str, Any]:
     me = ctx.me["id"]
-    mine = ctx.db.select_all("v_open_cards", {"assignee_id": "eq." + me}, order="card_id")
+    # on_my_work is false only for a card that stays on its board but leaves My Work (a live flow).
+    mine = ctx.db.select_all("v_open_cards", {"assignee_id": "eq." + me, "on_my_work": "eq.true"}, order="card_id")
     seen = {(c["board"], c["card_id"]) for c in mine}
-    for c in ctx.db.select_all("v_open_cards", {"reviewer_id": "eq." + me}, order="card_id"):
+    for c in ctx.db.select_all("v_open_cards", {"reviewer_id": "eq." + me, "on_my_work": "eq.true"}, order="card_id"):
         if (c["board"], c["card_id"]) not in seen and c.get("stage") in ctx.review(c["board"]):
             mine.append(c)
     out = page_of(ranked(ctx, [dict(c, id=c["card_id"]) for c in mine], me), page)

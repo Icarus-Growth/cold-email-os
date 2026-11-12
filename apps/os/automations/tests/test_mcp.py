@@ -53,6 +53,7 @@ def open_card(card_id, board="tasks", **extra):
         "client_id": "c-1",
         "stage": SPEC["boards"][board]["stages"][1],
         "assignee_id": "t-maker",
+        "on_my_work": True,
         "reviewer_id": None,
         "due_date": None,
         "stage_changed_at": ago(1),

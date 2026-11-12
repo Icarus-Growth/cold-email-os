@@ -90,3 +90,54 @@ from (values ($doc$# Offer
 - Who it is for: owners of small accounting firms
 - What they get: 10 booked calls a month
 - Guarantee: no calls, no fee$doc$)) d(body);
+
+-- Example sending set-up and lead list (0021) ----------------------------------
+insert into public.sending_domains (batch_id, client_id, domain, inbox_kind, inbox_provider, registrar, name_style,
+                                    planned_price_usd, paid_price_usd, inboxes_planned, status, bought_at, dns_verified_at,
+                                    warmup_started_at, ready_at, is_example)
+select b.id, b.client_id, d.domain, 'google', 'Example provider', 'Example registrar', 'brand + word',
+       11.00, d.paid, 3, d.status, d.bought, d.dns, d.warm, d.ready, true
+from public.inbox_batches b
+join (values
+  ('Example: first batch',  'tryexampleclienta.com', 11.00, 'ready',   now() - interval '30 days', now() - interval '29 days', now() - interval '28 days', now() - interval '14 days'),
+  ('Example: first batch',  'getexampleclienta.com', 11.00, 'ready',   now() - interval '30 days', now() - interval '29 days', now() - interval '28 days', now() - interval '14 days'),
+  ('Example: second batch', 'meetexampleclientb.com', 11.00, 'warming', now() - interval '7 days',  now() - interval '6 days',  now() - interval '6 days',  null)
+) as d(batch, domain, paid, status, bought, dns, warm, ready) on d.batch = b.batch_name
+where b.is_example;
+
+insert into public.sending_inboxes (domain_id, batch_id, client_id, address, first_name, last_name, inbox_kind, status,
+                                    warmup_tool, warmup_daily_limit, warmup_started_at, is_example)
+select d.id, d.batch_id, d.client_id, i.local || '@' || d.domain, i.first, 'Example', 'google', d.status,
+       'Example warm-up tool', 20, d.warmup_started_at, true
+from public.sending_domains d
+cross join (values ('alex', 'Alex'), ('sam', 'Sam')) as i(local, first)
+where d.is_example;
+
+insert into public.lead_searches (client_id, keyword, location, industry, status, attempts, results_count, new_count,
+                                  credits_used, searched_at, is_example) values
+  ('cccccccc-0000-4000-8000-000000000001', 'accountant', 'Example City', 'Accounting', 'done',  1, 2, 2, 1, now() - interval '2 days', true),
+  ('cccccccc-0000-4000-8000-000000000001', 'bookkeeper', 'Example City', 'Accounting', 'to do', 0, null, null, 0, null, true);
+
+insert into public.lead_companies (client_id, search_id, company_name, website, domain, location, category, industry,
+                                   place_id, rating, review_count, source, fit_status, fit_confidence, fit_reason,
+                                   fit_method, fit_checked_at, is_example)
+select s.client_id, s.id, c.name, 'https://' || c.domain, c.domain, 'Example City', 'Accountant', 'Accounting',
+       c.place, c.rating, c.reviews, 'map search', c.fit, c.conf, c.why, 'free check', now() - interval '1 day', true
+from public.lead_searches s
+join (values
+  ('Example Books Ltd',   'examplebooks.com',   'example-place-1', 4.80, 52, 'fit',     90, 'Small accounting firm. Owner-led.'),
+  ('Example Tax Giants',  'exampletaxgiants.com', 'example-place-2', 4.10, 900, 'not fit', 85, 'Too large: over 1,000 people.')
+) as c(name, domain, place, rating, reviews, fit, conf, why) on true
+where s.is_example and s.keyword = 'accountant';
+
+insert into public.lead_contacts (client_id, company_id, full_name, first_name, last_name, title, domain, email,
+                                  email_status, email_score, email_source, email_pattern, catch_all, guess_credits,
+                                  guess_checked_at, final_verdict, is_example)
+select c.client_id, c.id, p.full_name, p.first, p.last, p.title, c.domain, p.email || '@' || c.domain,
+       p.status, p.score, 'guessed', 'first', p.catch_all, 1, now() - interval '1 day', p.verdict, true
+from public.lead_companies c
+join (values
+  ('Robin Example', 'Robin', 'Example', 'Owner',   'robin', 'valid',     95, false, 'send'),
+  ('Kai Example',   'Kai',   'Example', 'Partner', 'kai',   'catch-all', 50, true,  null)
+) as p(full_name, first, last, title, email, status, score, catch_all, verdict) on true
+where c.is_example and c.fit_status = 'fit';

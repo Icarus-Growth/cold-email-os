@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { Bot, Copy, KeyRound, Unplug, UserPlus } from 'lucide-react';
 import { TEAM_DEV, TEAM_SECTIONS, SETTINGS_FIELDS } from '../../core.config';
-import { BOARDS, isOpen } from '../../lib/schema';
+import { BOARDS, canBeLate, isOpen } from '../../lib/schema';
 import { Button, ChoicePill, DataTable, Modal, Notice, RecordPage, Sections, StagePill, Tag, type SectionSpec } from '../../ui';
 import { refreshAll, useData, type Data, type Row } from '../../lib/store';
 import { navigate, openCard } from '../../lib/router';
@@ -224,7 +224,7 @@ export function MemberPage({ id }: { id: string }) {
       children: cards.length ? (
         <div className="rounded-[10px] border border-line divide-y divide-[var(--border-secondary)]" data-member-cards>
           {cards.map(({ def, row }) => {
-            const due = row.due_date ? dueLine(row.due_date) : null;
+            const due = row.due_date ? dueLine(row.due_date, 'Due', canBeLate(def, row)) : null;
             return (
               <button key={def.table + row.id} type="button" onClick={() => openCard(def.table, row.id)}
                 className="w-full grid grid-cols-[1fr_auto] max-[520px]:grid-cols-1 gap-x-3 gap-y-1 items-center text-left px-3 py-2 hover:bg-ground">

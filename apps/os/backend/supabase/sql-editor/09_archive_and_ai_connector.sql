@@ -1,4 +1,4 @@
--- SQL editor paste 9 of 19: 0010_archive_and_ai_connector.sql
+-- SQL editor paste 9 of 21: 0010_archive_and_ai_connector.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

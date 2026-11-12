@@ -40,7 +40,8 @@ Every rule for building and changing this OS, except the database rules. Those a
 14. The screens are in `apps/os/frontend/`. The boards, stages and fields are in
     `apps/os/frontend/src/agency.config.ts`. Colours are in `apps/os/frontend/src/theme.css` only.
 15. A card shows its name and three fields at most. Only a "100 - ..." stage counts as finished.
-    A live stage (a live campaign) stays open and stays on My Work.
+    A live stage (a live campaign) stays open and stays on My Work. A board with `liveOnMyWork: false`
+    (email flows) keeps its live cards on the board only. A live card is never late or stuck.
 16. `apps/os/frontend/src/ui/` holds the screen parts every screen uses. A change there shows on every screen.
 17. Put the OS live again after a change: `python3 apps/os/frontend/tools/deploy.py` (add `--domain <OS address>`
     if the OS has its own domain; `--dry-run` shows every call first).

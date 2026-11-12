@@ -82,7 +82,8 @@ export function whoActs(src: WorkSource, table: string, row: Row, stage: string)
 }
 
 /** Every open card on every board, with who it waits on. Open = not in a `closed` stage, so a
- *  live card (a live campaign) is here too: it still needs someone to watch it. */
+ *  live card (a live campaign) is here too: it still needs someone to watch it. A board with
+ *  `liveOnMyWork: false` (email flows) keeps its live cards off My Work. */
 export function openWork(src: WorkSource): WorkItem[] {
   const out: WorkItem[] = [];
   src.boards.forEach((def) => {
@@ -91,6 +92,7 @@ export function openWork(src: WorkSource): WorkItem[] {
       if (def.closed.indexOf(stage) > -1) return;
       const due = row.due_date ? String(row.due_date).slice(0, 10) : null;
       const live = (def.live || []).indexOf(stage) > -1;
+      if (live && def.liveOnMyWork === false) return;
       out.push({
         id: row.id, table: def.table, board: def.label, name: String(row[def.nameKey] || 'Untitled ' + def.item),
         clientId: row.client_id || null, stage, waiter: whoActs(src, def.table, row, stage),

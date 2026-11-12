@@ -1,4 +1,4 @@
--- SQL editor paste 13 of 19: 0014_document_fields.sql
+-- SQL editor paste 13 of 21: 0014_document_fields.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

@@ -332,6 +332,8 @@ def pending_by_person(
     review = config.review_stages()
     out: Dict[str, List[Tuple[Tuple[int, Any], Dict[str, Any], str]]] = {}
     for card in open_cards:
+        if card.get("on_my_work") is False:  # on its board only, not on My Work (a live flow): no message
+            continue
         due = parse_day(card.get("due_date"))
         live = bool(card.get("is_live"))
         waiting = card.get("stage") in review.get(card.get("board"), [])

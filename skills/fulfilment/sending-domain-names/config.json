@@ -1,0 +1,64 @@
+{
+  "_read_me": "The naming rules. Change them here, not in the code. references/naming-rules.md says why each rule exists.",
+  "default_style": "branded",
+  "registrar": "porkbun",
+  "prefixes": [
+    "go", "get", "try", "join", "find", "search", "explore", "reach", "access", "boost",
+    "team", "send", "email", "connect", "launch", "start", "build", "discover", "meet",
+    "use", "hello", "hey", "my", "the", "top", "best", "run", "open", "live", "grow",
+    "with", "via", "one", "all", "new", "pro"
+  ],
+  "suffixes": [
+    "hub", "hq", "online", "today", "direct", "teams", "projects", "outreach", "works",
+    "signal", "scope", "flow", "edge", "radar", "desk", "global", "core", "base", "systems",
+    "engine", "link", "next", "source", "circle", "stack", "zone", "path", "spot", "wave",
+    "grid", "point", "shift", "field", "net", "way", "pulse", "vault", "peak", "sync", "lab"
+  ],
+  "max_name_length": 40,
+  "banned_parts": ["mega", "ultra", "grp"],
+  "tlds": [".com", ".co"],
+  "never_tlds": [".info", ".xyz", ".click", ".top", ".buzz", ".loan"],
+  "max_first_year_price_usd": {".com": 15, ".co": 30},
+  "never_use": [],
+  "max_checks": 400,
+  "generic_max_per_root": 2,
+  "generic_max_per_affix": 3,
+  "generic_roots": [
+    "aspen", "basalt", "bramble", "cedar", "cobalt", "ember", "fathom", "granite",
+    "harbor", "indigo", "inlet", "ironwood", "juniper", "lumen", "marble", "meridian",
+    "nimbus", "outpost", "quarry", "ridge", "sequoia", "sierra", "slate", "tundra",
+    "vertex", "willow", "zenith", "alder", "amber", "arbor", "birch", "boulder",
+    "canyon", "cinder", "cliff", "copper", "coral", "crest", "delta", "drift",
+    "dune", "fjord", "flint", "forge", "garnet", "glacier", "grove", "hawk",
+    "heron", "hollow", "horizon", "jasper", "kestrel", "lagoon", "larch", "lark",
+    "linden", "maple", "mesa", "moss", "north", "oakley", "onyx", "orchard",
+    "osprey", "pine", "prairie", "quartz", "raven", "redwood", "reef", "river",
+    "rowan", "sable", "saffron", "sage", "shale", "spruce", "stone", "summit",
+    "thicket", "timber", "topaz", "trail", "vale", "valley", "wren", "yarrow"
+  ],
+  "blocked_parts": [
+    "fuck", "fuk", "fck", "shit", "cunt", "cock", "dick", "pussy", "penis", "vagina",
+    "genital", "anal", "anus", "porn", "sex", "xxx", "slut", "whore", "bitch", "bastard",
+    "wank", "twat", "tits", "boob", "dildo", "horny", "nude", "nsfw", "milf", "cum", "jizz",
+    "butt", "asshole", "jackass", "dumbass", "crap", "turd", "fart", "wtf", "stfu",
+    "nigg", "fag", "spic", "kike", "chink", "coon", "gook", "retard", "tranny", "dyke",
+    "wetback", "beaner", "towelhead", "raghead", "paki", "homo",
+    "rapist", "rape", "molest", "pedo", "kill", "murder", "nazi", "hitler", "terror",
+    "suicide", "cocaine", "heroin",
+    "spam", "scam", "fraud", "phish", "hack", "virus", "malware", "casino", "viagra", "cialis"
+  ],
+  "safe_words": [
+    "document", "cumul", "cucumber", "circum", "accum",
+    "essex", "sussex", "middlesex",
+    "analy", "canal", "banal", "analog",
+    "dickens",
+    "peacock", "hancock", "cockpit", "cocktail", "woodcock",
+    "button", "butter", "rebutt", "buttress",
+    "scrap", "saturday",
+    "spice", "spicy", "auspic", "conspic", "perspic",
+    "tycoon", "raccoon", "cocoon",
+    "pakistan", "homogen",
+    "grape", "drape", "scrape", "trapez", "therapeut", "parapet",
+    "skill", "heroine"
+  ]
+}

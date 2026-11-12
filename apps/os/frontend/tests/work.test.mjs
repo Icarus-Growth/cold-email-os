@@ -102,6 +102,30 @@ test('a live card stays on My Work, is never late, and comes after the work that
   assert.deepEqual(W.waitsOnYou(all, 'ed').map((w) => w.id), ['fresh', 'live-old-due']);
 });
 
+test('a board with liveOnMyWork: false keeps its live cards off My Work; other boards keep theirs', () => {
+  const FLOWS = { table: 'flows', label: 'Flows', item: 'flow', nameKey: 'flow_name', stageKey: 'stage', closed: ['100 - Retired'], live: ['60 - Live'], liveOnMyWork: false };
+  const s = src({
+    flows: [
+      { id: 'flow-live', flow_name: 'Welcome', stage: '60 - Live', client_id: 'c1', assignee_id: 'ed', due_date: '2026-09-01', stage_changed_by_id: 'am' },
+      { id: 'flow-build', flow_name: 'Winback', stage: '20 - Copy', client_id: 'c1', assignee_id: 'ed' },
+      { id: 'flow-retired', flow_name: 'Old cart', stage: '100 - Retired', client_id: 'c1', assignee_id: 'ed' },
+    ],
+    videos: [{ id: 'video-live', video_title: 'V1', stage: '60 - Scheduled', client_id: 'c1', assignee_id: 'ed' }],
+  });
+  s.boards = s.boards.concat([FLOWS]);
+  const all = W.openWork(s);
+  assert.deepEqual(all.map((w) => w.id).sort(), ['flow-build', 'video-live']);
+  assert.deepEqual(W.waitsOnYou(all, 'ed').map((w) => w.id), ['flow-build', 'video-live']);
+  assert.deepEqual(W.waitsOnOthers(all, 'am').map((w) => w.id), []);
+});
+
+test('a due date on a live or finished card is a plain date, never "Late since"', () => {
+  const past = '2020-01-15';
+  assert.deepEqual(F.dueLine(past), { text: 'Late since 15 Jan', tone: 'bad', late: true });
+  assert.deepEqual(F.dueLine(past, 'Due', false), { text: 'Due 15 Jan', tone: null, late: false });
+  assert.equal(F.dueLine('2099-01-15', 'Due', false).text, 'Due 15 Jan');
+});
+
 test('waits on you: late first, then due soonest, then longest in its stage', () => {
   const all = W.openWork(src({ tasks: [
     task('later', '10 - In Progress', { assignee_id: 'ed', due_date: '2026-11-10' }),

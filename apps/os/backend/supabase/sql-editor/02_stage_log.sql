@@ -1,4 +1,4 @@
--- SQL editor paste 2 of 19: 0002_stage_log.sql
+-- SQL editor paste 2 of 21: 0002_stage_log.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

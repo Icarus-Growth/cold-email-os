@@ -362,3 +362,15 @@ def test_a_live_card_stays_on_my_queue_but_is_never_late_or_stuck():
     rows = ok(read(mcp, "my_queue"))["rows"]
     assert [r["id"] for r in rows] == ["late", "running"]
     assert rows[1]["why"] == "live" and "late" not in rows[1]["why"] and "no move" not in rows[1]["why"]
+
+
+def test_a_card_off_my_work_stays_on_its_board_but_not_on_my_queue():
+    """0023: v_open_cards.on_my_work is false for a flow at '60 - Live'. My Work leaves it out."""
+    from test_mcp import open_card
+
+    off = open_card("live-flow", on_my_work=False)
+    db, mcp = make(v_open_cards=[off, open_card("normal")])
+    assert [r["id"] for r in ok(read(mcp, "my_queue"))["rows"]] == ["normal"]
+    asked = [r for r in db.reads if r.get("table") == "v_open_cards"]
+    assert asked and all(r["filters"].get("on_my_work") == "eq.true" for r in asked[-2:])
+    assert "live-flow" in [r["id"] for r in ok(read(mcp, "urgent", token="owner-token"))["rows"]]  # still an open card

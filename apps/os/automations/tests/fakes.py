@@ -49,6 +49,17 @@ def ladders() -> Dict[str, List[str]]:
         m.group(1): re.findall(r"'([^']+)'", m.group(2))
         for m in re.finditer(r"create type public\.(\w+) as enum \((.*?)\);", sql, re.S)
     }
+    # A later change file can add a stage: alter type ... add value 'X' [before|after 'Y'].
+    for m in re.finditer(
+        r"alter type public\.(\w+) add value (?:if not exists )?'([^']+)'(?: (before|after) '([^']+)')?", sql
+    ):
+        labels = enums.get(m.group(1))
+        if labels is None or m.group(2) in labels:
+            continue
+        if m.group(3) and m.group(4) in labels:
+            labels.insert(labels.index(m.group(4)) + (1 if m.group(3) == "after" else 0), m.group(2))
+        else:
+            labels.append(m.group(2))
     out = {}
     for m in re.finditer(r"create table public\.(\w+) \((.*?)\n\);", sql, re.S):
         col = re.search(r"\n\s*(stage|onboarding_stage)\s+public\.(\w+)", m.group(2))
@@ -75,7 +86,16 @@ class FakeDB(Supabase):
     """Rows in memory. Inherits the real paging (select_all) and get()."""
 
     #: Tables whose stage column the stand-in stage log trigger watches (0002).
-    LOGGED = {"tasks", "campaigns", "inbox_batches", "creatives", "videos", "flows", "campaign_calendars", "ad_campaigns"}
+    LOGGED = {
+        "tasks",
+        "campaigns",
+        "inbox_batches",
+        "creatives",
+        "videos",
+        "flows",
+        "campaign_calendars",
+        "ad_campaigns",
+    }
 
     def __init__(self, tables: Optional[Dict[str, List[Dict[str, Any]]]] = None) -> None:
         super().__init__("https://db.example.com", "test-key")
@@ -107,7 +127,7 @@ class FakeDB(Supabase):
         return True
 
     def select(self, table, filters=None, columns="*", order=None, limit=None, offset=None):
-        self.reads.append({"table": table, "limit": limit, "offset": offset})
+        self.reads.append({"table": table, "limit": limit, "offset": offset, "filters": dict(filters or {})})
         rows = [r for r in self.tables.get(table, []) if self._ok(r, filters or {})]
         if order:
             rows.sort(key=lambda r: str(r.get(order.split(".")[0])), reverse=order.endswith(".desc"))

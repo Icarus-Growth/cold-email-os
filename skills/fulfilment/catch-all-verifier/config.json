@@ -1,0 +1,18 @@
+{
+  "_about": "Rules you may change. The deep check (BounceBan) is aimed only at catch-all domains, where the cheap check is guessing.",
+  "check_statuses": ["catch-all"],
+  "_check_statuses": "Which email_status values get the deep check. Add \"unknown\" to also deep-check what the cheap check could not answer. That spends more.",
+  "send_score": 70,
+  "_send_score": "Deliverable with this score or more = valid (send). Below it = risky.",
+  "max_checks_per_person": 4,
+  "_max_checks_per_person": "The most candidates deep-checked for one person.",
+  "credits_per_check": 2,
+  "_credits_per_check": "What one deep check costs on your plan. Check your BounceBan account.",
+  "approval_above": 500,
+  "_approval_above": "A run that can cost more credits than this waits for a person to approve it.",
+  "max_wait_seconds": 30,
+  "_max_wait_seconds": "How long to wait for one slow deep check before it counts as unknown.",
+  "workers": 4,
+  "batch_size": 500,
+  "max_batches_per_run": 4
+}

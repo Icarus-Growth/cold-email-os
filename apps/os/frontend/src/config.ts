@@ -93,6 +93,10 @@ export interface RecordDef {
   /** Stages where the work is running, not waiting (a live campaign, a scheduled post). The card stays
    *  open and on My Work, but it is never late and never stuck. Same as the database's stuck view. */
   live?: string[];
+  /** false: a card in a live stage leaves My Work. It shows on its own board only (a live email flow
+   *  runs for months and needs nobody). Default true: a live card stays on My Work (a live campaign
+   *  still needs someone to watch it). Either way a live card is never late and never stuck. */
+  liveOnMyWork?: boolean;
   /** Every card must belong to a client. */
   clientRequired: boolean;
   /** The three fields on the face of a card (after its name). Never more than three. */

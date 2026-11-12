@@ -1,0 +1,12 @@
+{
+  "_about": "Rules you may change. The tam-mapper only plans and counts; it never spends.",
+  "max_searches_per_plan": 5000,
+  "_max_searches_per_plan": "A plan bigger than this stops with a plain message. Use fewer places or keywords.",
+  "expected_new_per_search": 6,
+  "_expected_new_per_search": "New businesses one search finds, used until real searches are done.",
+  "expected_fit_rate": 0.4,
+  "_expected_fit_rate": "The share of businesses that fit, used until the website-classifier has checked some.",
+  "pages_per_search": 1,
+  "credits_per_page": 1,
+  "_pages_per_search": "These two come from the google-maps-scraper's config.json when it is next to this skill."
+}

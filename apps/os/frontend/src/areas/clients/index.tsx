@@ -5,7 +5,7 @@
  * the same page. The ids sit in a closed "For developers" section at the bottom. */
 import { Archive, ArchiveRestore, Copy, Plus, Trash2 } from 'lucide-react';
 import type { FieldDef, RecordDef } from '../../config';
-import { AGENCY, BOARDS, LISTS, isOpen } from '../../lib/schema';
+import { AGENCY, BOARDS, LISTS, canBeLate, isOpen } from '../../lib/schema';
 import { CLIENT_BASIC, CLIENT_DEV, CLIENT_NOTES, CLIENT_ONBOARDING, CALL_FIELDS } from '../../core.config';
 import { Button, ChoicePill, DataTable, Dot, Notice, RecordPage, StagePill, Tag, type SectionSpec } from '../../ui';
 import { archiveClient, isArchived, remove, restoreClient, useData, useQuery, type Data, type Row } from '../../lib/store';
@@ -84,7 +84,7 @@ function Work({ S, def, client }: { S: Data; def: RecordDef; client: Row }) {
       {rows.length ? (
         <div className="rounded-[10px] border border-line divide-y divide-[var(--border-secondary)]">
           {rows.slice().sort((a, b) => Number(isOpen(def, b)) - Number(isOpen(def, a))).map((r) => {
-            const due = r.due_date ? dueLine(r.due_date) : null;
+            const due = r.due_date ? dueLine(r.due_date, 'Due', canBeLate(def, r)) : null;
             return (
               <button key={r.id} type="button" onClick={() => openCard(def.table, r.id)} data-work-row={r.id}
                 className="w-full grid grid-cols-[1fr_auto] max-[520px]:grid-cols-1 gap-x-3 gap-y-1 items-center text-left px-3 py-2 hover:bg-ground">

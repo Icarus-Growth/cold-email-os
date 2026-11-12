@@ -1,0 +1,28 @@
+{
+  "_read_me": "The sizing rules. Change them here, not in the code. SKILL.md shows the sum.",
+  "sending_days_per_month": 21,
+  "spare_buffer_percent": 10,
+  "split_percent": {"google": 60, "outlook": 40},
+  "sends_per_inbox_per_day": {"google": 20, "outlook": 5},
+  "inboxes_per_domain": {"google": 2, "outlook": 49},
+  "providers": {"google": "scaledmail", "outlook": "inboxing"},
+  "allowed_inboxes_per_domain": {"inboxing": [25, 49, 50, 99]},
+  "warmup_tool": "plusvibe",
+  "warmup": {
+    "google": {"start_per_day": 5, "ramp_per_day": 5, "max_per_day": 50,
+               "step_down_after_days": 14, "after_step_down_per_day": 30},
+    "outlook": {"start_per_day": 2, "ramp_per_day": 0, "max_per_day": 2,
+                "step_down_after_days": null, "after_step_down_per_day": null}
+  },
+  "warm_days_before_sending": 14,
+  "warm_days_enterprise": 21,
+  "setup_days": 3,
+  "cost_estimate": {
+    "_read_me": "Example list prices, for the estimate in the approval message only. Check each vendor's price page and change them. Domain prices come live from the registrar; these are used only when it gives none.",
+    "domain_year_usd_if_unknown": {".com": 12, ".co": 16},
+    "inbox_month_usd": {
+      "scaledmail": {"per": "inbox", "usd": 3.5},
+      "inboxing": {"per": "domain", "usd": 30}
+    }
+  }
+}

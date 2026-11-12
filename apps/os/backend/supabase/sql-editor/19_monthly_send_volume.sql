@@ -1,4 +1,4 @@
--- SQL editor paste 19 of 19: 0020_monthly_send_volume.sql
+-- SQL editor paste 19 of 21: 0020_monthly_send_volume.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

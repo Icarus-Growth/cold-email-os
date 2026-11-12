@@ -5,7 +5,7 @@ import { Building2, CalendarClock, Hash } from 'lucide-react';
 import type { RecordDef } from '../../config';
 import { And, Button, ChoicePill, FilterPill, Foot, KanbanBoard, type BoardCard, type CardField } from '../../ui';
 import { move, useData, type Data, type Row } from '../../lib/store';
-import { BOARDS, isLive, isOpen, ladderOf } from '../../lib/schema';
+import { BOARDS, canBeLate, ladderOf } from '../../lib/schema';
 import { inApp, openCard, useRoute } from '../../lib/router';
 import { clearScreenFilters, filterValue, screenFilters, setScreenFilter } from '../../lib/ui';
 import { dueLine, stageNumber } from '../../lib/format';
@@ -24,8 +24,8 @@ function cardField(S: Data, def: RecordDef, row: Row, key: string): CardField | 
   }
   if (f && f.type === 'person') { const n = S.teamName(v); return { text: n || 'Nobody yet', who: n }; }
   if (f && (f.type === 'date' || f.type === 'datetime')) {
-    const d = dueLine(v, f.label === 'Due date' ? 'Due' : f.label);
-    return d ? { text: d.text, icon: CalendarClock, tone: isOpen(def, row) && !isLive(def, row) ? d.tone : null } : { text: 'No ' + f.label.toLowerCase(), icon: CalendarClock };
+    const d = dueLine(v, f.label === 'Due date' ? 'Due' : f.label, canBeLate(def, row));
+    return d ? { text: d.text, icon: CalendarClock, tone: d.tone } : { text: 'No ' + f.label.toLowerCase(), icon: CalendarClock };
   }
   if (f && (f.type === 'int' || f.type === 'number' || f.type === 'money' || f.type === 'percent')) {
     return { text: f.label + ': ' + showNumber(v, f.type), icon: Hash };
@@ -36,14 +36,14 @@ function cardField(S: Data, def: RecordDef, row: Row, key: string): CardField | 
 
 /** A row as a board card. */
 export function toCard(S: Data, def: RecordDef, row: Row): BoardCard {
-  const due = row.due_date ? dueLine(row.due_date) : null;
+  const due = row.due_date ? dueLine(row.due_date, 'Due', canBeLate(def, row)) : null;
   return {
     id: row.id,
     stage: String(row[def.stageKey]),
     title: String(row[def.nameKey] || 'Untitled ' + def.item),
     colour: row.client_id ? S.clientColour(row.client_id) : undefined,
     sort: row.updated_at,
-    alert: !!(due && due.late && isOpen(def, row) && !isLive(def, row)),
+    alert: !!(due && due.late),
     fields: (row.archived_at ? [{ text: 'Archived' } as CardField] : []).concat(
       def.card.map((k) => cardField(S, def, row, k)).filter((x): x is CardField => !!x)).slice(0, 3),
   };

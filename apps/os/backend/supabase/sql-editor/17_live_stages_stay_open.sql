@@ -1,4 +1,4 @@
--- SQL editor paste 17 of 19: 0018_live_stages_stay_open.sql
+-- SQL editor paste 17 of 21: 0018_live_stages_stay_open.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

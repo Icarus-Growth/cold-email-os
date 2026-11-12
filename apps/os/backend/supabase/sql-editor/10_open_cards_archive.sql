@@ -1,4 +1,4 @@
--- SQL editor paste 10 of 19: 0011_open_cards_archive.sql
+-- SQL editor paste 10 of 21: 0011_open_cards_archive.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

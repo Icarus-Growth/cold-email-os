@@ -99,6 +99,17 @@ test('cold email: inbox set-ups are a board, finished only at "100 - Ready To Se
   assert.deepEqual(BOARDS.find((x) => x.table === 'campaigns').live, ['50 - Live']);
 });
 
+test('email marketing: a flow is finished only at "100 - Retired"; a live flow is off My Work (only flows do that)', () => {
+  RECORDS.filter((b) => b.liveOnMyWork === false).forEach((b) => assert.equal(b.table, 'flows', b.table + ' keeps live cards off My Work'));
+  if (AG.AGENCY.agency !== 'Email Marketing') return;
+  const f = BOARDS.find((x) => x.table === 'flows');
+  assert.deepEqual(f.closed, ['100 - Retired']);
+  assert.deepEqual(f.live, ['60 - Live']);
+  assert.equal(f.liveOnMyWork, false);
+  assert.equal(LADDERS[f.ladder][LADDERS[f.ladder].length - 1], '100 - Retired');
+  assert.notEqual(BOARDS.find((x) => x.table === 'campaign_calendars').liveOnMyWork, false);
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try { await fn(); console.log('ok   ' + name); } catch (e) { failed++; console.log('FAIL ' + name + '\n     ' + (e && e.message)); }

@@ -1,0 +1,15 @@
+{
+  "_about": "Rules you may change. One cheap check (MillionVerifier) costs about 1 credit.",
+  "max_candidates": 8,
+  "_max_candidates": "The most patterns tried per person. The 8 most common patterns find most addresses.",
+  "deep_candidates": 4,
+  "_deep_candidates": "On a catch-all domain: how many candidates are saved for the catch-all-verifier.",
+  "catch_all_after": 2,
+  "_catch_all_after": "This many 'catch_all' answers at one domain mark it catch-all, even if the test address said otherwise.",
+  "approval_above": 1000,
+  "_approval_above": "A run that can cost more credits than this waits for a person to approve it. The ask shows the most it can cost.",
+  "workers": 4,
+  "_workers": "Company domains checked at the same time.",
+  "batch_size": 500,
+  "max_batches_per_run": 4
+}

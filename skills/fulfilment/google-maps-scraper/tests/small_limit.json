@@ -1,0 +1,11 @@
+{
+  "country": "us",
+  "pages_per_search": 1,
+  "results_per_full_page": 10,
+  "credits_per_page": 1,
+  "approval_above": 2,
+  "batch_size": 500,
+  "max_batches_per_run": 4,
+  "max_attempts": 2,
+  "keep_without_website": false
+}
