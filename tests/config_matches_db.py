@@ -12,7 +12,11 @@ in the database never shows on the board. So this check fails when:
   - a ladder is not an enum in the migrations, or its stages or their order differ;
   - a board, list or field names a ladder that is not in the config;
   - a board's "closed" stage is not on its ladder;
-  - a board or checklist names a table that no migration makes.
+  - a board's "closed" stage is not a finished stage. Only a stage numbered 100 (done)
+    or -1 (rejected) is finished. A live stage ("50 - Live") stays open, as in the
+    database view v_open_cards;
+  - a board or checklist names a table that no migration makes;
+  - a table with a stage log (a board in the database) has no board or list in the config.
 It reads every migration in file-name order, so an Interview change that adds a stage
 (alter type ... add value) is counted. Then add the same stage to the config, in the same place.
 """
@@ -103,6 +107,14 @@ def tables_in(files):
     return found
 
 
+def stage_log_tables(files):
+    found = set()
+    for f in files:
+        sql = strip_sql_comments(f.read_text())
+        found.update(re.findall(r"attach_stage_log\(\s*'(\w+)'", sql))
+    return found
+
+
 def show(values):
     return ", ".join(f"'{v}'" for v in values) or "(none)"
 
@@ -158,6 +170,15 @@ def main():
         problems.append("\n".join(lines))
 
     tables = tables_in(files)
+    shown = set()
+    for path, _ in configs:
+        shown.update(re.findall(r"\btable\s*:\s*'(\w+)'", strip_ts_comments(path.read_text())))
+    if AGENCY_CONFIG.exists():
+        for board in sorted(stage_log_tables(files) - {"clients"} - shown):
+            problems.append(
+                f"{board} has a stage log in the migrations (it is a board), but no board or list in the config"
+                " shows it. Add it to agency.config.ts."
+            )
     for path, _ in configs:
         text = strip_ts_comments(path.read_text())
         where = path.relative_to(ROOT)
@@ -169,6 +190,11 @@ def main():
             for v in QUOTED.findall(closed):
                 if v not in stages:
                     problems.append(f"{where}: closed stage '{v}' is not on ladder '{ladder}'.")
+                elif v.split(" ", 1)[0] not in ("100", "-1"):
+                    problems.append(
+                        f"{where}: closed stage '{v}' on ladder '{ladder}' is not finished. Only a 100 or -1 stage"
+                        " is finished; a live stage stays open. Take it out of closed."
+                    )
         for name in re.findall(r"\btable\s*:\s*'(\w+)'", text):
             if name not in tables:
                 problems.append(f"{where}: table '{name}' is not made by any migration.")

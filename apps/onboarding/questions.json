@@ -1,6 +1,6 @@
 {
   "form_key": "onboarding",
-  "form_version": "cold-email-v1",
+  "form_version": "cold-email-v2",
   "title": "Client onboarding",
   "intro": {
     "minutes": 20,
@@ -233,6 +233,19 @@
       "type": "long_text",
       "required": true,
       "help": "Name and job title for each sender. Most clients use two or three people."
+    },
+    {
+      "step": 4,
+      "id": "monthly_send_volume",
+      "label": "How many cold emails do you want to send each month?",
+      "type": "number",
+      "required": true,
+      "placeholder": "e.g. 20000",
+      "help": "A rough number is fine. We plan your sending domains and inboxes from it.",
+      "none_option": {
+        "label": "Not sure yet. We will set it with you on the call.",
+        "value": "Not sure yet"
+      }
     },
     {
       "step": 4,

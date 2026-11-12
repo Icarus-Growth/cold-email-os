@@ -21,6 +21,7 @@ export type FieldType =
   | 'bool'       // a tick box
   | 'person'     // a team member (a column that ends in _id and points at team)
   | 'client'     // a client (client_id)
+  | 'card'       // a card on another board (`board`): its name, a link to it, and a pick list of that client's cards
   | 'choice'     // one value from `list` (a database list, see LADDERS), or from `options`
   | 'tags'       // several words (a text[] column)
   | 'document';  // copy written in the OS editor (the documents table, migration 0013): no column on the row
@@ -34,6 +35,8 @@ export interface FieldDef {
   list?: string;
   /** For 'choice' on a text column: the choices, when the database keeps no list. */
   options?: string[];
+  /** For 'card': the table of the board the card is on. */
+  board?: string;
   /** For 'document': the link column kept for "paste a link instead" (none for some fields). */
   link?: string;
   /** For 'document': the extra check under the readability numbers. */
@@ -83,8 +86,13 @@ export interface RecordDef {
   stageKey: string;
   /** The name of the ladder in LADDERS (the database's own list name). */
   ladder: string;
-  /** Stages that count as finished: they leave the dashboard. Same as the database view v_open_cards. */
+  /** Stages that count as finished: they leave My Work and the dashboard. Same as the database view
+   *  v_open_cards. Only a '100 - ...' stage is finished (and a below-0 stop, such as '-1 - Rejected').
+   *  A live stage ('50 - Live') is NOT finished: a live campaign still needs someone. */
   closed: string[];
+  /** Stages where the work is running, not waiting (a live campaign, a scheduled post). The card stays
+   *  open and on My Work, but it is never late and never stuck. Same as the database's stuck view. */
+  live?: string[];
   /** Every card must belong to a client. */
   clientRequired: boolean;
   /** The three fields on the face of a card (after its name). Never more than three. */

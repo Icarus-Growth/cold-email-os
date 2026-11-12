@@ -155,6 +155,7 @@
     var s = String(v).trim();
     if (q.type === "email" && !EMAIL_RE.test(s)) return "please enter a valid email address";
     if (q.type === "url" && !URL_RE.test(s)) return "please enter a valid web address";
+    if (q.type === "number" && !/^[0-9]{1,9}$/.test(s.replace(/[\s,']/g, ""))) return "please enter a whole number, for example 20000";
     return null;
   }
 
@@ -474,6 +475,7 @@
       var type = q.type === "email" ? "email" : (q.type === "url" ? "url" : "text");
       var inp = el("input", { id: "in-" + q.id, type: type, placeholder: q.placeholder || "",
                               "data-testid": "input-" + q.id, autocomplete: q.type === "email" ? "email" : "off" });
+      if (q.type === "number") inp.setAttribute("inputmode", "numeric");
       inp.value = isNone(q, S.answers[q.id]) ? "" : (S.answers[q.id] || "");
       inp.addEventListener("input", function () { setAnswer(q.id, inp.value); });
       inp.addEventListener("blur", function () { flushSave(); });

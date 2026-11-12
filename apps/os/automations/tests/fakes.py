@@ -75,7 +75,7 @@ class FakeDB(Supabase):
     """Rows in memory. Inherits the real paging (select_all) and get()."""
 
     #: Tables whose stage column the stand-in stage log trigger watches (0002).
-    LOGGED = {"tasks", "campaigns", "inbox_batches", "creatives", "videos", "flows", "campaign_calendars"}
+    LOGGED = {"tasks", "campaigns", "inbox_batches", "creatives", "videos", "flows", "campaign_calendars", "ad_campaigns"}
 
     def __init__(self, tables: Optional[Dict[str, List[Dict[str, Any]]]] = None) -> None:
         super().__init__("https://db.example.com", "test-key")

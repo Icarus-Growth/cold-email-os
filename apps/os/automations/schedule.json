@@ -1,0 +1,4 @@
+{
+  "_about": "How the daily summary (and each person's morning list) starts. \"hourly\": one scheduled job on Modal checks every hour and posts at the summary hour on weekdays. \"off\": no scheduled job at all (Modal's free plan allows 5 in the whole account); then run it by hand (modal run apps/os/automations/app.py::summary_now) or from a button that calls POST <OS_AUTOMATIONS_URL>/summary-now. Change it only when the owner picks a choice in tab 3 Step 7.6, then deploy again.",
+  "daily_summary": "hourly"
+}

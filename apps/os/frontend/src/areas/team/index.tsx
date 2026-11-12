@@ -14,7 +14,7 @@ import { refreshAll, useData, type Data, type Row } from '../../lib/store';
 import { navigate, openCard } from '../../lib/router';
 import { confirm, createOpen, filterValue, screenFilters, setScreenFilter, toast } from '../../lib/ui';
 import { addMember, connectAI, resendAccess, revokeAI, type AccessResult, type AILinkParts } from '../../lib/team';
-import { aiSetup, WEB_PLANS, WEB_WARNING } from '../../lib/ailink';
+import { AIKeyLines } from './AIKeyBox';
 import { dateTime, dueLine } from '../../lib/format';
 import { devSection, fieldSpec, sectionSpec } from '../records/fields';
 import { copyText } from '../records/CardPanel';
@@ -160,47 +160,11 @@ function Resend({ person }: { person: Row }) {
 
 /* ---------- the AI connector link (tab 5), shown once ---------------------------- */
 
-function CopyRow({ label, text }: { label: string; text: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      <pre className="flex-1 min-w-0 whitespace-pre-wrap break-all rounded-[10px] bg-ground border border-line px-3 py-2 text-[12.5px] leading-[18px] text-ink font-mono" data-copy>{text}</pre>
-      <Button size="sm" icon={Copy} aria-label={'Copy ' + label} onClick={() => copyText(text, 'Copied ' + label + '.')}>Copy</Button>
-    </div>
-  );
-}
-
-/** The key, shown once, as the lines each AI tool takes (tab 5, Step 4). */
+/** The key, shown once, as the lines each AI tool takes (tab 5, Step 4). The key itself is masked. */
 function AILink({ person, link, onClose }: { person: Row; link: AILinkParts; onClose: () => void }) {
   return (
     <Modal wide title={'AI key for ' + person.full_name} onClose={onClose} footer={<Button onClick={onClose}>Done</Button>}>
-      <div className="space-y-4" data-ai-link>
-        <p className="text-[13px] text-ink2">
-          This is the only time the key is shown. Copy the lines for {person.full_name}'s AI now and send them to
-          {' ' + person.full_name} directly, never in a shared channel or a document.
-        </p>
-        <section className="space-y-1.5" data-basics>
-          <h3 className="text-[13.5px] font-semibold text-ink">Server address (not secret)</h3>
-          <CopyRow label="the server address" text={link.server} />
-          <h3 className="text-[13.5px] font-semibold text-ink pt-1">Key</h3>
-          <CopyRow label="the key" text={link.key} />
-          <p className="text-[12.5px] text-muted">Keep the key (and the link for Claude on the web, if used) in a password manager.</p>
-        </section>
-        {aiSetup(link).map((s) => (
-          <section key={s.tool} className="space-y-1.5 border-t border-line2 pt-3" data-tool={s.tool}>
-            <h3 className="text-[13.5px] font-semibold text-ink">{s.tool}</h3>
-            <p className="text-[12.5px] text-muted">{s.where}</p>
-            <CopyRow label={'the lines for ' + s.tool} text={s.text} />
-            {link.url === s.text && <>
-              <p className="text-[12.5px] text-[var(--warn)]" data-web-warning>{WEB_WARNING}</p>
-              <p className="text-[12px] text-muted" data-web-plans>{WEB_PLANS}</p>
-            </>}
-          </section>
-        ))}
-        <p className="text-[12.5px] text-bad font-medium">
-          The key and the link for Claude on the web work like a password. Anyone who has one can read and change the
-          OS as {person.full_name}, with their access. If one leaks, press "Revoke".
-        </p>
-      </div>
+      <AIKeyLines name={person.full_name} link={link} onCopy={copyText} />
     </Modal>
   );
 }

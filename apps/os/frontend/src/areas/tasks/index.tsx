@@ -5,11 +5,11 @@ import { Building2, CalendarClock, Hash } from 'lucide-react';
 import type { RecordDef } from '../../config';
 import { And, Button, ChoicePill, FilterPill, Foot, KanbanBoard, type BoardCard, type CardField } from '../../ui';
 import { move, useData, type Data, type Row } from '../../lib/store';
-import { BOARDS, isOpen, ladderOf } from '../../lib/schema';
+import { BOARDS, isLive, isOpen, ladderOf } from '../../lib/schema';
 import { inApp, openCard, useRoute } from '../../lib/router';
 import { clearScreenFilters, filterValue, screenFilters, setScreenFilter } from '../../lib/ui';
 import { dueLine, stageNumber } from '../../lib/format';
-import { showNumber } from '../records/fields';
+import { linkedCard, linkedName, showNumber } from '../records/fields';
 import { ME, assigneeChoice, assigneeKey, openCount, passesAssignee } from './assignee';
 
 /** The field of a card, by its column. */
@@ -17,10 +17,15 @@ function cardField(S: Data, def: RecordDef, row: Row, key: string): CardField | 
   const v = row[key];
   const f = def.sections.flatMap((s) => s.fields).find((x) => x.key === key);
   if (key === 'client_id') return { text: v ? S.clientName(v) : 'No client', icon: Building2 };
+  /* A link to another card (ads: the creative's campaign) keeps the client on the same line. */
+  if (f && f.type === 'card') {
+    const client = row.client_id ? S.clientName(row.client_id) : 'No client';
+    return { text: client + ' · ' + (linkedCard(S, f, v) ? linkedName(S, f, v) : 'No ' + f.label.toLowerCase()), icon: Building2 };
+  }
   if (f && f.type === 'person') { const n = S.teamName(v); return { text: n || 'Nobody yet', who: n }; }
   if (f && (f.type === 'date' || f.type === 'datetime')) {
     const d = dueLine(v, f.label === 'Due date' ? 'Due' : f.label);
-    return d ? { text: d.text, icon: CalendarClock, tone: isOpen(def, row) ? d.tone : null } : { text: 'No ' + f.label.toLowerCase(), icon: CalendarClock };
+    return d ? { text: d.text, icon: CalendarClock, tone: isOpen(def, row) && !isLive(def, row) ? d.tone : null } : { text: 'No ' + f.label.toLowerCase(), icon: CalendarClock };
   }
   if (f && (f.type === 'int' || f.type === 'number' || f.type === 'money' || f.type === 'percent')) {
     return { text: f.label + ': ' + showNumber(v, f.type), icon: Hash };
@@ -38,7 +43,7 @@ export function toCard(S: Data, def: RecordDef, row: Row): BoardCard {
     title: String(row[def.nameKey] || 'Untitled ' + def.item),
     colour: row.client_id ? S.clientColour(row.client_id) : undefined,
     sort: row.updated_at,
-    alert: !!(due && due.late && isOpen(def, row)),
+    alert: !!(due && due.late && isOpen(def, row) && !isLive(def, row)),
     fields: (row.archived_at ? [{ text: 'Archived' } as CardField] : []).concat(
       def.card.map((k) => cardField(S, def, row, k)).filter((x): x is CardField => !!x)).slice(0, 3),
   };

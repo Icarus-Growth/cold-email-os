@@ -1,6 +1,10 @@
 ---
 name: create-client
 description: Makes a new folder of notes for one client, clients/<client-name>/, from clients/_template/, and fills in what the user knows (contacts, emails, domains, other names). Notes only, not linked to the OS, the database or Slack. Use when the user says "add a client folder", "create a client", "set up notes for <client>" or "new client".
+area: global
+agency: all
+needs: []
+runs_on: local
 ---
 
 # Create client
@@ -20,7 +24,7 @@ clients/<client-name>/
 ├── onboarding.md   The onboarding answers, raw call notes and action items
 ├── schemas.md      The client's own data outside the OS (their sheets, tools, connections)
 ├── decisions.md    Judgment calls made on this client, newest at the top
-├── AGENTS.md       A short index of the files above (same text as CLAUDE.md)
+├── AGENTS.md       One line that points to CLAUDE.md
 ├── CLAUDE.md
 └── .env.example    Keys for this client's own tools go in .env (never committed)
 ```
@@ -29,7 +33,7 @@ clients/<client-name>/
 
 1. Ask for the client's name, as it should read in the notes (for example "Acme Corp").
 2. Show what will be made, and check the folder does not exist yet:
-   `python3 .claude/skills/create-client/scripts/create_client.py --name "Acme Corp" --dry-run`
+   `python3 skills/global/create-client/scripts/create_client.py --name "Acme Corp" --dry-run`
    The folder name is made from the name (`acme-corp`). If the user wants another, add
    `--folder <name>`. If the folder already exists, stop and say so: open the existing folder instead.
 3. Make it: the same command without `--dry-run`.

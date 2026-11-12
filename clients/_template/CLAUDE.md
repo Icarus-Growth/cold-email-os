@@ -1,7 +1,7 @@
 # {{CLIENT_NAME}}: quick index
 
 Read this when you work on this client. Keep each line to "see `<file>` for <what>".
-`AGENTS.md` and `CLAUDE.md` hold the same text, word for word.
+`AGENTS.md` is one line that points here.
 
 - See `about.md` for the company, the contacts and the other names they go by.
 - See `onboarding.md` for the onboarding answers and open questions.

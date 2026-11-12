@@ -45,8 +45,10 @@ export interface WorkItem {
   assignee: string | null;
   /** The due day ('YYYY-MM-DD'), or null. */
   due: string | null;
-  /** Due before today (on the day itself it is not late yet). */
+  /** Due before today (on the day itself it is not late yet). Never for a live card. */
   late: boolean;
+  /** In a live stage (agency.config.ts `live`): open, but running, not waiting. */
+  live: boolean;
   /** When it came into this stage. */
   since: string | null;
   /** Who moved it into this stage. */
@@ -79,7 +81,8 @@ export function whoActs(src: WorkSource, table: string, row: Row, stage: string)
   return null;
 }
 
-/** Every open card on every board, with who it waits on. */
+/** Every open card on every board, with who it waits on. Open = not in a `closed` stage, so a
+ *  live card (a live campaign) is here too: it still needs someone to watch it. */
 export function openWork(src: WorkSource): WorkItem[] {
   const out: WorkItem[] = [];
   src.boards.forEach((def) => {
@@ -87,10 +90,11 @@ export function openWork(src: WorkSource): WorkItem[] {
       const stage = String(row[def.stageKey] || '');
       if (def.closed.indexOf(stage) > -1) return;
       const due = row.due_date ? String(row.due_date).slice(0, 10) : null;
+      const live = (def.live || []).indexOf(stage) > -1;
       out.push({
         id: row.id, table: def.table, board: def.label, name: String(row[def.nameKey] || 'Untitled ' + def.item),
         clientId: row.client_id || null, stage, waiter: whoActs(src, def.table, row, stage),
-        assignee: row.assignee_id || null, due, late: !!due && due < src.today,
+        assignee: row.assignee_id || null, due, late: !live && !!due && due < src.today, live,
         since: row[def.stageKey + '_changed_at'] || null, lastBy: row[def.stageKey + '_changed_by_id'] || null,
       });
     });
@@ -101,9 +105,9 @@ export function openWork(src: WorkSource): WorkItem[] {
 const sinceTime = (w: WorkItem) => (w.since ? new Date(w.since).getTime() : Infinity);
 const dueTime = (w: WorkItem) => (w.due ? new Date(w.due + 'T00:00:00').getTime() : Infinity);
 
-/** Late first, then due soonest, then longest in its stage. */
+/** Late first, then due soonest, then longest in its stage. Live cards come last. */
 export function byUrgency(a: WorkItem, b: WorkItem): number {
-  return (Number(b.late) - Number(a.late)) || (dueTime(a) - dueTime(b)) || (sinceTime(a) - sinceTime(b));
+  return (Number(a.live) - Number(b.live)) || (Number(b.late) - Number(a.late)) || (dueTime(a) - dueTime(b)) || (sinceTime(a) - sinceTime(b));
 }
 
 /** What waits on this person, most urgent first. */

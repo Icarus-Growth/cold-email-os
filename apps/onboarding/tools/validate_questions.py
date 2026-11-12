@@ -23,9 +23,9 @@ APP = Path(__file__).resolve().parent.parent
 DEFAULT = APP / "questions.json"
 
 # app.js fieldNode(): the kinds of question it can draw.
-TYPES = {"short_text", "long_text", "email", "url", "single_select", "multi_select", "checkbox"}
+TYPES = {"short_text", "long_text", "email", "url", "number", "single_select", "multi_select", "checkbox"}
 SELECT_TYPES = {"single_select", "multi_select"}
-TEXT_TYPES = {"short_text", "long_text", "email", "url"}
+TEXT_TYPES = {"short_text", "long_text", "email", "url", "number"}
 # worker.js PUBLIC_KEYS: the only keys the page ever sees.
 KNOWN_KEYS = {
     "step", "id", "label", "type", "required", "help", "placeholder", "rows", "options", "chips",

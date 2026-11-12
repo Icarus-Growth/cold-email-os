@@ -1,11 +1,11 @@
 """Find everything about one client. Run it from the repo root. Reads .env; never prints a key.
 
-    python3 .claude/skills/search-client/scripts/search_client.py "Acme"
-    python3 .claude/skills/search-client/scripts/search_client.py --email jane@example.com
-    python3 .claude/skills/search-client/scripts/search_client.py --id <client row id>
-    python3 .claude/skills/search-client/scripts/search_client.py "Acme" --full      every column of every row
-    python3 .claude/skills/search-client/scripts/search_client.py "Acme" --json      the same, as JSON
-    python3 .claude/skills/search-client/scripts/search_client.py "Acme" --files-only   skip the database
+    python3 skills/global/search-client/scripts/search_client.py "Acme"
+    python3 skills/global/search-client/scripts/search_client.py --email jane@example.com
+    python3 skills/global/search-client/scripts/search_client.py --id <client row id>
+    python3 skills/global/search-client/scripts/search_client.py "Acme" --full      every column of every row
+    python3 skills/global/search-client/scripts/search_client.py "Acme" --json      the same, as JSON
+    python3 skills/global/search-client/scripts/search_client.py "Acme" --files-only   skip the database
 
 1. Find the client. First the sure matches: the same name (case, dots and "Inc", "Ltd"
    and so on do not count), the same email, an email on the client's own domain, or a name

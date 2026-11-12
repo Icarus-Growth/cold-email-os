@@ -14,11 +14,20 @@ The post (CANN, main message plus thread):
 Each person is tagged once in the whole summary. After that only their name is written.
 Archived clients and archived cards (archived_at is set) are left out of every part.
 
+Then, in the same run (no new schedule), each team member with open work gets one Slack direct
+message: their own open cards, late first, then due today, then waiting for their review, then
+the rest, each with a link. Nobody with no open cards gets a message, and nobody gets two on one
+day (a run by hand after the scheduled one sends none again). A live card (is_live: a campaign
+that is running, a post that is scheduled) is never called late or stuck.
+Slack permissions it uses (already in the manifest): chat:write, im:write (open the direct
+message), users:read.email (find a person with no Slack id yet by their email).
+
 Every read goes in pages of at most 500 rows and stops after 20 pages.
 """
 
 from __future__ import annotations
 
+import traceback
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, MutableMapping, Optional, Tuple
 
@@ -28,6 +37,7 @@ from common import (
     button,
     card_link,
     client_link,
+    first_time,
     os_base,
     read_settings,
     report_failure,
@@ -36,7 +46,9 @@ from common import (
 )
 
 SUMMARY_BOT = "☀️ Daily Summary"
+TASKS_BOT = "📋 Your Work Today"
 MAX_LINES = 30
+DM_LINES = 15
 
 
 def zone(settings: Dict[str, Any]) -> Any:
@@ -141,6 +153,13 @@ def act_today(
     out = []
     for card in open_cards:
         reasons = []
+        if card.get("is_live"):
+            # A running campaign or a scheduled post is not late or stuck (the views leave it out too).
+            waiting = card.get("stage") in review.get(card.get("board"), [])
+            if waiting:
+                out.append(dict(card, reasons=["waiting for review"], person=card.get("reviewer_id")
+                                or card.get("assignee_id"), waiting=True, late_or_due=False))  # fmt: skip
+            continue
         due = parse_day(card.get("due_date"))
         if due and due < today:
             reasons.append("late {0} day{1}".format((today - due).days, "" if (today - due).days == 1 else "s"))
@@ -291,6 +310,162 @@ def build_summary(
     return {"text": text, "blocks": blocks, "replies": replies}
 
 
+# --------------------------------------------------------------------------- each person's own work
+
+
+def card_url(card: Dict[str, Any], settings: Dict[str, Any], config: Config) -> str:
+    if config.boards.get(card.get("board"), {}).get("link") == "client" and card.get("client_id"):
+        return client_link(settings, card["client_id"])
+    return card_link(settings, card.get("board"), card.get("card_id") or "")
+
+
+def pending_by_person(
+    open_cards: List[Dict[str, Any]],
+    config: Config,
+    today: date,
+    now_utc: Optional[datetime] = None,
+    stuck_days: int = 3,
+) -> Dict[str, List[Tuple[Tuple[int, Any], Dict[str, Any], str]]]:
+    """{team id: [(sort key, card, why)]}: each person's own open cards (as the maker), and the
+    cards waiting for their review. Late first, then due today, then waiting for review, then due
+    tomorrow, then stuck (no move for stuck_days), then the rest by due date. Pure."""
+    review = config.review_stages()
+    out: Dict[str, List[Tuple[Tuple[int, Any], Dict[str, Any], str]]] = {}
+    for card in open_cards:
+        due = parse_day(card.get("due_date"))
+        live = bool(card.get("is_live"))
+        waiting = card.get("stage") in review.get(card.get("board"), [])
+        people = []
+        if card.get("assignee_id") and not (waiting and card.get("reviewer_id")):
+            people.append(card["assignee_id"])
+        if waiting and card.get("reviewer_id"):
+            people.append(card["reviewer_id"])
+        for pid in dict.fromkeys(people):
+            if waiting and pid == card.get("reviewer_id"):
+                key, why = (2, ""), "waiting for your review"
+            elif due and due < today and not live:
+                days = (today - due).days
+                key, why = (0, due.isoformat()), "late {0} day{1}".format(days, "" if days == 1 else "s")
+            elif due and due == today and not live:
+                key, why = (1, ""), "due today"
+            elif due and due == today + timedelta(days=1):
+                key, why = (3, ""), "due tomorrow"
+            elif not live and stuck_for(card, now_utc) >= stuck_days:
+                key, why = (4, -stuck_for(card, now_utc)), "no move for {0} days".format(stuck_for(card, now_utc))
+            else:
+                key, why = (5, due.isoformat() if due else "9999"), ("live" if live else "")
+            out.setdefault(pid, []).append((key, card, why))
+    for items in out.values():
+        items.sort(key=lambda t: (t[0], str(t[1].get("card_name") or "")))
+    return out
+
+
+def stuck_for(card: Dict[str, Any], now_utc: Optional[datetime]) -> int:
+    moved = parse_time(card.get("stage_changed_at"))
+    return (now_utc - moved).days if moved and now_utc else 0
+
+
+def pending_message(
+    person: Dict[str, Any],
+    items: List[Tuple[Tuple[int, Any], Dict[str, Any], str]],
+    clients: Dict[str, Dict[str, Any]],
+    settings: Dict[str, Any],
+    config: Config,
+    today: date,
+) -> Dict[str, Any]:
+    """One person's direct message: what is on their plate today, each card with a link. Pure."""
+    base = os_base(settings)
+    first = (person.get("full_name") or "").split(" ")[0] or "there"
+    late = sum(1 for k, _, _ in items if k[0] == 0)
+    due = sum(1 for k, _, _ in items if k[0] == 1)
+    review = sum(1 for k, _, _ in items if k[0] == 2)
+    head = "*Your work, {0} {1} {2}*".format(today.strftime("%a"), today.strftime("%b"), today.day)
+    counts = "Hi {0}. You have {1} open card{2}: {3} late, {4} due today, {5} waiting for your review.".format(
+        first, len(items), "" if len(items) == 1 else "s", late, due, review
+    )
+    todo = "Start with the first one." if (late or due or review) else "Nothing is late or due today."
+    lines = [head, counts, todo]
+    for _, card, why in items[:DM_LINES]:
+        name = esc(card.get("card_name") or "A card")
+        link = card_url(card, settings, config)
+        label = "<{0}|{1}>".format(link, name) if link else name
+        client = esc((clients.get(card.get("client_id")) or {}).get("client_name") or "")
+        where = card.get("board_label") or config.board_label(card.get("board"))
+        where = "{0}, {1}".format(where, client) if client else where
+        lines.append("• {0} ({1}){2}".format(label, where, ": " + why if why else ""))
+    if len(items) > DM_LINES:
+        lines.append("…and {0} more on My Work.".format(len(items) - DM_LINES))
+    text = "\n".join(lines)
+    blocks = [section(text)]
+    if base:
+        blocks.append(button("Open My Work", base + "/"))
+    return {"text": text, "blocks": blocks}
+
+
+def send_pending_tasks(
+    db: Any,
+    slack: Any,
+    config: Config,
+    seen: Optional[MutableMapping[str, Any]],
+    data: Dict[str, List[Dict[str, Any]]],
+    settings: Dict[str, Any],
+    today: date,
+    now_utc: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """One direct message per team member with open cards. Never raises: a person who cannot be
+    reached is counted, and one message in pipeline-errors names them all."""
+    data = without_archived(data)
+    clients = {c["id"]: c for c in data.get("clients", [])}
+    team = {
+        r["id"]: r
+        for r in db.select_all("team", {"status": "eq.Active"}, columns="id,full_name,email,status,slack_user_id")
+    }
+    sent, skipped, failed = [], [], []
+    stuck_days = int(settings.get("stuck_after_days") or 3)
+    by_person = pending_by_person(
+        data.get("open", []), config, today, now_utc or datetime.now(timezone.utc), stuck_days
+    )
+    for pid, items in sorted(by_person.items()):
+        person = team.get(pid)
+        if not person or not items:
+            continue  # not on the active team any more
+        if not first_time(seen, "pending-dm:{0}:{1}".format(pid, today.isoformat()), hours=20):
+            skipped.append(person.get("full_name"))
+            continue
+        try:
+            slack_id = (person.get("slack_user_id") or "").strip()
+            if not slack_id and person.get("email"):
+                try:
+                    slack_id = slack.call("users.lookupByEmail", {"email": person["email"]})["user"]["id"]
+                    db.update("team", pid, {"slack_user_id": slack_id})
+                except Exception as e:  # noqa: BLE001
+                    if getattr(e, "code", "") != "users_not_found":
+                        raise
+                    slack_id = ""
+            if not slack_id:
+                failed.append("{0} (no Slack account uses {1})".format(person.get("full_name"), person.get("email")))
+                continue
+            dm = slack.call("conversations.open", {"users": slack_id})["channel"]["id"]
+            msg = pending_message(person, items, clients, settings, config, today)
+            slack.post(dm, TASKS_BOT, msg["text"], blocks=msg["blocks"])
+            sent.append(person.get("full_name"))
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            failed.append("{0} ({1})".format(person.get("full_name"), getattr(e, "code", "") or e))
+    if failed:
+        report_failure(
+            slack,
+            config,
+            seen,
+            "Morning tasks message",
+            "Send each person their open cards",
+            RuntimeError("not sent to: " + "; ".join(failed)),
+            os_base(settings),
+            "These people did not get their morning list. Link them in Slack (tab 3 Step 5), or they open My Work.",
+        )
+    return {"sent": len(sent), "already_sent_today": len(skipped), "not_sent": failed}
+
+
 # --------------------------------------------------------------------------- running
 
 
@@ -320,7 +495,23 @@ def run_daily_summary(
         ts = slack.post(channel, SUMMARY_BOT, summary["text"], blocks=summary["blocks"])
         for reply in summary["replies"]:
             slack.post(channel, SUMMARY_BOT, reply, thread_ts=ts)
-        return {"posted": True, "ts": ts, "since": since.isoformat(), "replies": len(summary["replies"])}
+        out = {"posted": True, "ts": ts, "since": since.isoformat(), "replies": len(summary["replies"])}
+        try:
+            out["direct_messages"] = send_pending_tasks(
+                db, slack, config, seen, data, settings, now_local.date(), now_utc
+            )
+        except Exception as e:  # noqa: BLE001 - the summary is already out; the messages fail on their own
+            report_failure(slack, config, seen, "Morning tasks message", "Read each person's cards", e, os_base(settings))
+            out["direct_messages"] = {"sent": 0, "error": str(e)}
+        try:
+            # Skills whose SKILL.md says `daily: true` run here, once a day (no new scheduled job).
+            from skills_runner import run_daily_skills
+
+            out["daily_skills"] = run_daily_skills(db, slack, config, seen, now_local.date())
+        except Exception as e:  # noqa: BLE001 - one bad skill never stops the summary
+            report_failure(slack, config, seen, "Daily skills", "Start the daily skills", e, os_base(settings))
+            out["daily_skills"] = {"error": str(e)}
+        return out
     except Exception as e:  # noqa: BLE001
         report_failure(
             slack,

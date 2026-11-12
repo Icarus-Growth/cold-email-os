@@ -5,7 +5,8 @@ python3 apps/os/automations/slack_setup.py check
 python3 apps/os/automations/slack_setup.py channels
     Every channel the bot can see, with its id.
 python3 apps/os/automations/slack_setup.py make-channels
-    Make (or find and join) every channel in channels.json, and save the ids there.
+    Check all 8 names first, then make (or find and join) every channel in channels.json, and
+    save the ids there. Every name that is taken is listed in one run.
 python3 apps/os/automations/slack_setup.py invite <channel key> <email> [<email> ...]
     Invite people to one automation channel, found by their email.
 python3 apps/os/automations/slack_setup.py link-clients [--save] [--set "Client name=channel-name" ...]
@@ -59,12 +60,13 @@ def save_channels(data: Dict[str, Any]) -> None:
     CHANNELS_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
-def all_channels() -> List[Dict[str, Any]]:
-    """Every channel the bot can see (public, and private ones it is in). Pages of 200, at most 20."""
+def all_channels(archived: bool = False) -> List[Dict[str, Any]]:
+    """Every channel the bot can see (public, and private ones it is in), and the archived ones
+    when asked: an archived channel still holds its name. Pages of 200, at most 20."""
     out: List[Dict[str, Any]] = []
     cursor = ""
     for _ in range(20):
-        body: Dict[str, Any] = {"types": "public_channel,private_channel", "exclude_archived": True, "limit": 200}
+        body: Dict[str, Any] = {"types": "public_channel,private_channel", "exclude_archived": not archived, "limit": 200}
         if cursor:
             body["cursor"] = cursor
         res = call("conversations.list", body)
@@ -108,33 +110,85 @@ def cmd_channels() -> int:
     return 0
 
 
+HIDDEN_NOTE = (
+    "A name can be taken by a channel the bot cannot see: a private channel it is not in, or an "
+    "archived channel. In Slack, open that channel and type /invite @<the app> (or unarchive it), "
+    "or pick another name in channels.json. Then run make-channels again."
+)
+
+
+def plan_channels(wanted: Dict[str, str], seen: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Check every wanted name against the channels the bot can see, before anything is made.
+    wanted: {key: channel name}. seen: conversations.list rows (archived ones too). Pure.
+    Returns {"use": [...], "join": [...], "make": [...], "blocked": [...]}, each item
+    {"key", "name", "channel"?, "why"?}."""
+    by_name: Dict[str, Dict[str, Any]] = {}
+    for ch in seen:
+        if ch.get("name") and (ch["name"] not in by_name or by_name[ch["name"]].get("is_archived")):
+            by_name[ch["name"]] = ch
+    out: Dict[str, List[Dict[str, Any]]] = {"use": [], "join": [], "make": [], "blocked": []}
+    names: Dict[str, str] = {}
+    for key, name in wanted.items():
+        item: Dict[str, Any] = {"key": key, "name": name}
+        found = by_name.get(name)
+        if name in names:
+            out["blocked"].append(dict(item, why="the same name as '{0}' in channels.json".format(names[name])))
+        elif not name:
+            out["blocked"].append(dict(item, why="the name is empty after taking out spaces and dots"))
+        elif found and found.get("is_archived"):
+            out["blocked"].append(dict(item, channel=found, why="an archived channel has this name"))
+        elif found and found.get("is_member"):
+            out["use"].append(dict(item, channel=found))
+        elif found and found.get("is_private"):
+            out["blocked"].append(dict(item, channel=found, why="a private channel the bot is not in has this name"))
+        elif found:
+            out["join"].append(dict(item, channel=found))
+        else:
+            out["make"].append(item)
+        names.setdefault(name, key)
+    return out
+
+
 def cmd_make_channels(private: bool) -> int:
     data = load_json(CHANNELS_FILE)
-    existing = {c["name"]: c for c in all_channels()}
-    bad = 0
-    for key, entry in data["channels"].items():
-        name = slug(entry.get("name") or key)
-        found = existing.get(name)
-        if found:
-            if not found.get("is_member"):
-                if found.get("is_private"):
-                    print(
-                        "STOP: #{0} is private and the bot is not in it. In Slack, open it and type /invite @<the app>.".format(
-                            name
-                        )
-                    )
-                    bad += 1
-                    continue
-                call("conversations.join", {"channel": found["id"]})
-            entry["id"], entry["name"] = found["id"], name
-            print("found  #{0}  {1}".format(name, found["id"]))
-        else:
-            res = call("conversations.create", {"name": name, "is_private": private})
-            entry["id"], entry["name"] = res["channel"]["id"], res["channel"]["name"]
-            print("made   #{0}  {1}".format(entry["name"], entry["id"]))
+    wanted = {key: slug(entry.get("name") or key) for key, entry in data["channels"].items()}
+    plan = plan_channels(wanted, all_channels(archived=True))
+    print("Checked all {0} names before making any:".format(len(wanted)))
+    for verb, items in (("use  ", plan["use"]), ("join ", plan["join"]), ("make ", plan["make"])):
+        for it in items:
+            print("  {0} #{1}".format(verb, it["name"]))
+    if plan["blocked"]:
+        print("STOP: {0} name(s) cannot be used. Nothing was made or joined.".format(len(plan["blocked"])))
+        for it in plan["blocked"]:
+            print("  TAKEN #{0} ({1}): {2}.".format(it["name"], it["key"], it["why"]))
+        print(HIDDEN_NOTE)
+        return 1
+    for it in plan["use"] + plan["join"]:
+        if it in plan["join"]:
+            call("conversations.join", {"channel": it["channel"]["id"]})
+        data["channels"][it["key"]].update(id=it["channel"]["id"], name=it["name"])
+        print("found  #{0}  {1}".format(it["name"], it["channel"]["id"]))
+    taken = []
+    for it in plan["make"]:
+        try:
+            res = call("conversations.create", {"name": it["name"], "is_private": private})
+        except SlackError as e:
+            if e.code != "name_taken":
+                save_channels(data)
+                raise
+            taken.append(it)  # hidden from the bot: keep going, so one run lists every clash
+            continue
+        data["channels"][it["key"]].update(id=res["channel"]["id"], name=res["channel"]["name"])
+        print("made   #{0}  {1}".format(res["channel"]["name"], res["channel"]["id"]))
     save_channels(data)
     print("Saved the ids in {0}.".format(CHANNELS_FILE.relative_to(REPO)))
-    return 1 if bad else 0
+    if taken:
+        print("STOP: Slack says {0} name(s) are taken by a channel the bot cannot see:".format(len(taken)))
+        for it in taken:
+            print("  TAKEN #{0} ({1})".format(it["name"], it["key"]))
+        print(HIDDEN_NOTE)
+        return 1
+    return 0
 
 
 def lookup(email: str) -> Optional[str]:

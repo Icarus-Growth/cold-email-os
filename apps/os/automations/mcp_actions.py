@@ -25,6 +25,12 @@ The rules every action keeps:
   * Documents (docs.*) are the long texts on a card or a client page (copy, scripts, briefs),
     stored as Markdown. A write names the version it read; a newer save by someone else is a
     conflict, never an overwrite. Client page documents follow clients.update: Owners and Admins.
+  * Skills (skills.*) are read from the copy of skills/ that the deploy puts in the app.
+    skills/owner/ is for Owners and Admins; skills/fulfilment/ and skills/global/ for everyone.
+    A skill made for another agency type ("agency" in its SKILL.md) is left out.
+  * The database actions (db.*) run as the caller, never as the server: the connector signs
+    the person in and the database's own rules (row level security) decide what they may read
+    and change. A change the rules refuse is reported as refused, never retried as the server.
   * The second brain (brain.*) is read from the copy of second-brain/ that the deploy puts
     in the app. Only notes inside it can be read. inbox/ (not sorted) and raw/ (whole
     sources: transcripts, word for word) are never shipped or read: tab 4 keeps details
@@ -67,8 +73,17 @@ class ActionError(ValueError):
 class Context:
     """One call: the database, the caller's team row, the settings and the type's files."""
 
-    def __init__(self, db: Any, me: Dict[str, Any], spec: Dict[str, Any], config: Config, today: Optional[date] = None):
+    def __init__(
+        self,
+        db: Any,
+        me: Dict[str, Any],
+        spec: Dict[str, Any],
+        config: Config,
+        today: Optional[date] = None,
+        caller_db: Optional[Callable[[], Any]] = None,
+    ):
         self.db = db
+        self._caller_db = caller_db
         self.me = me
         self.spec = spec
         self.config = config
@@ -76,6 +91,16 @@ class Context:
         self._today = today
         self._team: Optional[List[Dict[str, Any]]] = None
         self._clients: Dict[str, Dict[str, Any]] = {}
+
+    def as_me(self) -> Any:
+        """The database as the caller (their sign-in, the database's rules), for db.read and db.write."""
+        if self._caller_db is None:
+            raise ActionError("The database actions are not set up on this connector.")
+        return self._caller_db()
+
+    @property
+    def role(self) -> str:
+        return str(self.me.get("access") or "")
 
     # ---- time
 
@@ -316,9 +341,10 @@ def urgency(ctx: Context, card: Dict[str, Any], me: Optional[str]) -> Tuple[Tupl
     """The sort key and the reasons. Late, then due today, then waiting for my review
     (anyone's review when me is None), then stuck longest."""
     today = ctx.today
-    due = parse_day(card.get("due_date"))
+    live = bool(card.get("is_live"))  # a running campaign or scheduled post: never late or stuck
+    due = None if live else parse_day(card.get("due_date"))
     moved = parse_time(card.get("stage_changed_at"))
-    days_still = (datetime.now(timezone.utc) - moved).days if moved else 0
+    days_still = (datetime.now(timezone.utc) - moved).days if moved and not live else 0
     waiting = card.get("stage") in ctx.review(card.get("board", "")) and (me is None or card.get("reviewer_id") == me)
     reasons: List[str] = []
     if due and due < today:
@@ -333,6 +359,8 @@ def urgency(ctx: Context, card: Dict[str, Any], me: Optional[str]) -> Tuple[Tupl
         bucket, inner = 3, -days_still
     if waiting:
         reasons.append("waiting for {0} review".format("your" if me else "a"))
+    if live:
+        reasons.append("live")
     if due and due == today + timedelta(days=1):
         reasons.append("due tomorrow")
     stuck_after = int(ctx.settings.get("stuck_after_days") or 3)
@@ -473,8 +501,8 @@ def cards_get(ctx: Context, board: str, id: str) -> Dict[str, Any]:
     return out
 
 
-def clients_get(ctx: Context, client: str) -> Dict[str, Any]:
-    row = ctx.client(client, allow_archived=True)
+def clients_get(ctx: Context, id: str) -> Dict[str, Any]:
+    row = ctx.client(id, allow_archived=True)
     cid = row["id"]
     roles = {}
     for col in ctx.config.rules.get("client_roles", ["account_manager_id"]):
@@ -581,9 +609,22 @@ def forms_get(ctx: Context, id: str = "", client: str = "", page: int = 1) -> Di
 
 
 def metrics_get(
-    ctx: Context, client: str, period: str = "weekly", date_from: str = "", date_to: str = "", page: int = 1
+    ctx: Context,
+    client: str = "",
+    period: str = "weekly",
+    date_from: str = "",
+    date_to: str = "",
+    page: int = 1,
+    id: str = "",
 ) -> Dict[str, Any]:
     table, col = period_table(period)
+    if id:
+        row = ctx.db.get(table, id)
+        if not row:
+            raise ActionError("No {0} numbers row with the id {1}. Check 'period'.".format(period or "weekly", id))
+        return {"row": clean(row), "client": ctx.client_name(row.get("client_id")), "period": period or "weekly"}
+    if not client:
+        raise ActionError("Give a client to list its numbers, or the id of one numbers row.")
     rows = ctx.db.select_all(table, live(ctx.client(client, allow_archived=True)), order=col + ".desc")
     lo, hi = a_date(date_from, "date_from"), a_date(date_to, "date_to")
     rows = [r for r in rows if (not lo or str(r.get(col)) >= lo) and (not hi or str(r.get(col)) <= hi)]
@@ -899,7 +940,8 @@ def doc_summary(ctx: Context, t: Dict[str, Any], body: bool) -> Dict[str, Any]:
     row = t["row"] or {}
     text = row.get("body_md") or ""
     out: Dict[str, Any] = {
-        "document": row.get("id"),
+        "id": row.get("id"),
+        "document": row.get("id"),  # the old name, kept for one release
         "field": t["field"],
         "label": t["spec"].get("label", t["field"]),
         "client": t["client"].get("client_name"),
@@ -953,9 +995,9 @@ def docs_list(ctx: Context, board: Optional[Dict[str, Any]], holder: Dict[str, A
 
 
 def docs_read(
-    ctx: Context, document: str = "", board: str = "", card: str = "", client: str = "", field: str = ""
+    ctx: Context, id: str = "", board: str = "", card: str = "", client: str = "", field: str = ""
 ) -> Dict[str, Any]:
-    t = doc_target(ctx, document, board, card, client, field)
+    t = doc_target(ctx, id, board, card, client, field)
     out = doc_summary(ctx, t, body=True)
     if is_archived(t["row"]) or is_archived(t["card"]) or is_archived(t["client"]):
         out["archived"] = True
@@ -966,13 +1008,13 @@ def docs_write(
     ctx: Context,
     body_md: str,
     version: int,
-    document: str = "",
+    id: str = "",
     board: str = "",
     card: str = "",
     client: str = "",
     field: str = "",
 ) -> Dict[str, Any]:
-    t = doc_target(ctx, document, board, card, client, field)
+    t = doc_target(ctx, id, board, card, client, field)
     if t["board"]:
         ctx.changeable(t["board"], t["card"])
     else:
@@ -1027,7 +1069,8 @@ def docs_write(
     holder_link = ctx.link(t["board"]["key"], t["card"]) if t["board"] else client_link(ctx.settings, t["client"]["id"])
     return {
         "saved": True,
-        "document": row["id"],
+        "id": row["id"],
+        "document": row["id"],  # the old name, kept for one release
         "field": t["field"],
         "version": new_version,
         "word_count": count,
@@ -1205,9 +1248,9 @@ def brain_search(ctx: Context, query: str, area: str = "") -> Dict[str, Any]:
     return out
 
 
-def brain_read(ctx: Context, note: str) -> Dict[str, Any]:
+def brain_read(ctx: Context, id: str) -> Dict[str, Any]:
     root = brain_ready()
-    p = find_note(root, note)
+    p = find_note(root, id)
     text, cut = read_text(p)
     return {
         "note": p.stem,
@@ -1218,6 +1261,284 @@ def brain_read(ctx: Context, note: str) -> Dict[str, Any]:
         "links": sorted(set(re.findall(r"\[\[([^\]|#]+)", text))),
         "rule": "Name this note ([[{0}]]) when you use it.".format(p.stem),
     }
+
+
+# --------------------------------------------------------------------------- skills
+
+SKILL_DIRS = [HERE / "skills", HERE.parents[2] / "skills" if len(HERE.parents) > 2 else HERE]
+SKILL_AREAS = {"owner": ADMINS, "fulfilment": EVERYONE, "global": EVERYONE}
+SKILL_TEXT = {".md", ".txt", ".py", ".sh", ".json", ".yml", ".yaml", ".toml", ".sql", ".js", ".mjs", ".ts", ".csv"}
+SKILL_FILE_MAX = 40000
+SKILL_SKIP = {"__pycache__", "node_modules", ".venv"}
+
+
+def frontmatter(text: str) -> Tuple[Dict[str, Any], str]:
+    """The block between the first two '---' lines of a SKILL.md, and the text after it. Reads
+    'key: value', 'key: [a, b]' and a list under a key ('  - a'). Standard library only. Pure."""
+    lines = (text or "").split("\n")
+    if not lines or lines[0].strip() != "---":
+        return {}, text or ""
+    meta: Dict[str, Any] = {}
+    last = None
+    for i, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            return meta, "\n".join(lines[i + 1 :]).lstrip("\n")
+        item = re.match(r"^\s+-\s*(.*)$", line)
+        if item and last is not None:
+            if not isinstance(meta.get(last), list):
+                meta[last] = []
+            meta[last].append(item.group(1).strip().strip("\"'"))
+            continue
+        key, sep, value = line.partition(":")
+        if not sep or not key.strip() or key.startswith(" "):
+            continue
+        last = key.strip()
+        value = value.strip()
+        if value.startswith("[") and value.endswith("]"):
+            meta[last] = [v.strip().strip("\"'") for v in value[1:-1].split(",") if v.strip()]
+        else:
+            meta[last] = value.strip("\"'")
+    return {}, text or ""
+
+
+def skills_root() -> Optional[Path]:
+    for d in SKILL_DIRS:
+        if d.is_dir():
+            return d.resolve()
+    return None
+
+
+def agency_fits(meta: Dict[str, Any], agency_type: str) -> bool:
+    """'all', the repo's own type, or a list that holds it. No type known: every skill fits."""
+    want = meta.get("agency") or "all"
+    wanted = want if isinstance(want, list) else [want]
+    return not agency_type or any(w in ("all", agency_type) for w in wanted)
+
+
+def all_skills(agency_type: str = "") -> List[Dict[str, Any]]:
+    """Every skill in skills/<area>/<name>/SKILL.md for this agency type, sorted by area then name."""
+    root = skills_root()
+    if root is None:
+        return []
+    out = []
+    for area in SKILL_AREAS:
+        for skill_md in sorted((root / area).glob("*/SKILL.md")):
+            folder = skill_md.parent
+            if not folder.resolve().is_relative_to(root):
+                continue
+            meta, body = frontmatter(skill_md.read_text(encoding="utf-8", errors="replace"))
+            if not agency_fits(meta, agency_type):
+                continue
+            out.append({"id": folder.name, "area": area, "folder": folder, "meta": meta, "body": body})
+    return out
+
+
+def skill_files(folder: Path) -> List[str]:
+    out = []
+    for p in sorted(folder.rglob("*")):
+        rel = p.relative_to(folder)
+        if p.is_file() and not (set(rel.parts) & SKILL_SKIP) and not p.name.startswith(".env"):
+            out.append(str(rel))
+    return out
+
+
+def skill_line(sk: Dict[str, Any]) -> Dict[str, Any]:
+    meta = sk["meta"]
+    return {
+        "id": "{0}/{1}".format(sk["area"], sk["id"]),  # the same id as the skills kit (area/name)
+        "name": meta.get("name") or sk["id"],
+        "description": meta.get("description") or "",
+        "area": sk["area"],
+        "runs_on": meta.get("runs_on") or "either",
+        "needs": meta.get("needs") or [],
+    }
+
+
+def skills_list(ctx: Context, area: str = "") -> Dict[str, Any]:
+    want = str(area or "").strip().lower()
+    if want and want not in SKILL_AREAS:
+        raise ActionError("No skill area called '{0}'. The areas are: {1}.".format(area, ", ".join(SKILL_AREAS)))
+    found = [
+        skill_line(sk)
+        for sk in all_skills(ctx.spec.get("agency_type", ""))
+        if ctx.role in SKILL_AREAS[sk["area"]] and (not want or sk["area"] == want)
+    ]
+    out: Dict[str, Any] = {"skills": found}
+    if not found:
+        out["message"] = "No skills yet{0}. skills/ in the repo holds them; deploy again after adding one.".format(
+            " in " + want if want else ""
+        )
+    if ctx.role not in ADMINS:
+        out["note"] = "Owner skills (sales and deals) are for Owners and Admins, so they are not listed."
+    return out
+
+
+RUN_HOW = {
+    "local": "Run it on your own computer, inside the OS repo: follow the steps in the text.",
+    "modal": (
+        "It runs on the automations app (Modal). An Owner or Admin starts it with "
+        "POST <OS_AUTOMATIONS_URL>/skill/<name> (header X-OS-Secret, body = its input as JSON), or "
+        "`python3 -m modal run apps/os/automations/app.py::run_skill --name <name> --args '{}'`. "
+        "The text says what input it takes."
+    ),
+    "either": "It runs on your own computer or on the automations app: follow the steps in the text.",
+}
+
+
+def skills_read(ctx: Context, id: str, file: str = "") -> Dict[str, Any]:
+    ref = str(id or "").strip().strip("/")
+    area, _, name = ref.rpartition("/")
+    hits = [sk for sk in all_skills(ctx.spec.get("agency_type", "")) if sk["id"] == name and (not area or sk["area"] == area)]
+    if not hits:
+        raise ActionError("No skill called '{0}'. Run skills.list to see them.".format(id))
+    sk = hits[0]
+    if ctx.role not in SKILL_AREAS[sk["area"]]:
+        raise ActionError(
+            "Refused: '{0}' is an owner skill, for Owners and Admins only; you are a {1}.".format(sk["id"], ctx.role)
+        )
+    files = skill_files(sk["folder"])
+    out = dict(skill_line(sk), files=files, how_to_run=RUN_HOW.get(skill_line(sk)["runs_on"], RUN_HOW["either"]))
+    if not file:
+        text, cut = sk["body"][:SKILL_FILE_MAX], len(sk["body"]) > SKILL_FILE_MAX
+        out.update(text=text, cut_short=cut or None)
+        if out["needs"]:
+            out["needs_note"] = "It needs these keys in .env (names only; never print a value): {0}.".format(
+                ", ".join(out["needs"])
+            )
+        return out
+    rel = str(file).strip().lstrip("/")
+    target = (sk["folder"] / rel).resolve()
+    if not target.is_relative_to(sk["folder"].resolve()) or rel not in files:
+        raise ActionError("No file '{0}' in {1}. Its files are: {2}.".format(file, sk["id"], ", ".join(files)))
+    if target.suffix.lower() not in SKILL_TEXT:
+        raise ActionError("'{0}' is not a text file, so the connector does not send it.".format(file))
+    text = target.read_text(encoding="utf-8", errors="replace")
+    out.update(file=rel, text=text[:SKILL_FILE_MAX], cut_short=(len(text) > SKILL_FILE_MAX) or None)
+    return out
+
+
+# --------------------------------------------------------------------------- the database, as the caller
+
+NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
+FILTER_OPS = re.compile(r"^(not\.)?(eq|neq|gt|gte|lt|lte|like|ilike|is|in|cs|cd)\.")
+DB_PAGE = PAGE
+
+
+def a_name(value: Any, what: str) -> str:
+    text = str(value or "").strip()
+    if not NAME.match(text):
+        raise ActionError("{0} '{1}' is not a table or column name (lower case letters, digits and _).".format(what, value))
+    return text
+
+
+def a_filter(value: Any) -> str:
+    """{"status": "Active"} -> eq.Active; {"due_date": "lt.2026-11-01"} as it is; None -> is.null."""
+    if value is None:
+        return "is.null"
+    if isinstance(value, bool):
+        return "is.{0}".format(str(value).lower())
+    text = str(value)
+    return text if FILTER_OPS.match(text) else "eq." + text
+
+
+def db_said_no(e: Exception, table: str, doing: str) -> ActionError:
+    """The database's refusal in plain words."""
+    text = str(e)
+    if "42501" in text or "permission denied" in text or "row-level security" in text or "(403)" in text:
+        reason = text.split('"message":"')[1].split('"')[0] if '"message":"' in text else ""
+        return ActionError(
+            "Refused by the database's rules: you may not {0} {1}{2}. Nothing was changed.".format(
+                doing, table, " ({0})".format(reason) if reason else ""
+            )
+        )
+    if "(404)" in text or "42P01" in text or "PGRST205" in text:
+        return ActionError("No table called '{0}'. SCHEMAS.md lists the tables.".format(table))
+    if "42703" in text or "PGRST204" in text:
+        return ActionError("A column you named is not in {0}. SCHEMAS.md lists its columns.".format(table))
+    return ActionError("The database said: {0}".format(text[:300]))
+
+
+def db_read(
+    ctx: Context,
+    table: str,
+    id: str = "",
+    filters: Optional[Dict[str, Any]] = None,
+    columns: str = "",
+    order: str = "",
+    page: int = 1,
+) -> Dict[str, Any]:
+    table = a_name(table, "table")
+    cols = ",".join(a_name(c, "column") for c in str(columns or "").split(",") if c.strip()) or "*"
+    params = {a_name(k, "column"): a_filter(v) for k, v in (filters or {}).items()}
+    if id:
+        params["id"] = "eq." + str(id).strip()
+    sort = None
+    if order:
+        col, _, way = str(order).strip().partition(".")
+        sort = a_name(col, "column") + (".desc" if way.lower() == "desc" else ".asc")
+    n = max(1, int(page or 1))
+    db = ctx.as_me()
+    try:
+        rows = db.select(table, params, columns=cols, order=sort, limit=DB_PAGE + 1, offset=(n - 1) * DB_PAGE)
+    except Exception as e:  # noqa: BLE001 - the database's reason, in plain words
+        raise db_said_no(e, table, "read") from e
+    if id:
+        if not rows:
+            raise ActionError(
+                "No row {0} in {1} that you may see. The database's rules decide what each person sees.".format(id, table)
+            )
+        return {"table": table, "row": clean(rows[0])}
+    more = len(rows) > DB_PAGE
+    return {
+        "table": table,
+        "rows": [clean(r) for r in rows[:DB_PAGE]],
+        "page": n,
+        "next_page": n + 1 if more else None,
+        "note": "Only the rows the database's rules let you see.",
+    }
+
+
+def db_write(ctx: Context, table: str, fields: Dict[str, Any], id: str = "") -> Dict[str, Any]:
+    table = a_name(table, "table")
+    if not fields:
+        raise ActionError("Give the fields to write, for example {\"notes\": \"...\"}.")
+    values = {a_name(k, "column"): v for k, v in fields.items()}
+    if "id" in values:
+        raise ActionError("The id is not a field to write. Give it as 'id' to change that row.")
+    db = ctx.as_me()
+    if id:
+        try:
+            rows = db.request(
+                "PATCH", table, {"id": "eq." + str(id).strip()}, body=values, prefer="return=representation"
+            )
+        except Exception as e:  # noqa: BLE001
+            raise db_said_no(e, table, "change this row in") from e
+        if not rows:
+            raise ActionError(
+                "Refused: the database's rules did not let you change row {0} in {1}, or it does not exist. "
+                "Nothing was changed.".format(id, table)
+            )
+        return {"changed": True, "table": table, "row": clean(rows[0])}
+    try:
+        rows = db.request("POST", table, body=values, prefer="return=representation")
+    except Exception as e:  # noqa: BLE001
+        raise db_said_no(e, table, "add a row to") from e
+    return {"added": True, "table": table, "row": clean((rows or [{}])[0])}
+
+
+def brain_list(ctx: Context, area: str = "", page: int = 1) -> Dict[str, Any]:
+    root = brain_ready()
+    want = str(area or "").strip().lower()
+    notes = []
+    for p in brain_files(root):
+        if not is_note(root, p) or (want and p.parent.name.lower() != want):
+            continue
+        notes.append({"id": p.stem, "area": p.parent.name, "path": str(p.relative_to(root))})
+    if want and not notes:
+        raise ActionError("No notes in an area called '{0}'. brain.index lists the areas.".format(area))
+    out = page_of(notes, page)
+    out["rule"] = BRAIN_RULE
+    return out
 
 
 # --------------------------------------------------------------------------- the registry
@@ -1233,7 +1554,7 @@ ID_P = _p("string", "The card's id.")
 CLIENT_P = _p("string", "The client's name or id.")
 PERSON_P = _p("string", "'me', a name, an email or a team id.")
 DOC_PARAMS = {
-    "document": _p("string", "The document's id (from cards.get, clients.get or docs.read)."),
+    "id": _p("string", "The document's id (from cards.get, clients.get or docs.read)."),
     "board": BOARD_P,
     "card": _p("string", "The card's id, with board and field."),
     "client": _p("string", "The client's name or id, with field, for a client page document."),
@@ -1241,13 +1562,15 @@ DOC_PARAMS = {
 }
 
 
-def _entry(kind, roles, description, handler, props=None, required=None):
+def _entry(kind, roles, description, handler, props=None, required=None, aliases=None):
+    """aliases: {old name: new name}, an old parameter name still taken for one release."""
     return {
         "kind": kind,
         "roles": roles,
         "description": description,
         "schema": {"type": "object", "properties": props or {}, "required": required or []},
         "handler": handler,
+        "aliases": aliases or {},
     }
 
 
@@ -1305,8 +1628,9 @@ ALL: Dict[str, Dict[str, Any]] = {
         "One client: its fields, its people, its open cards, its last calls and forms, "
         "and its last four weeks of numbers.",
         clients_get,
-        {"client": CLIENT_P},
-        ["client"],
+        {"id": _p("string", "The client's id, or its name.")},
+        ["id"],
+        {"client": "id"},
     ),
     "team": _entry(
         "read",
@@ -1331,16 +1655,16 @@ ALL: Dict[str, Dict[str, Any]] = {
     "metrics.get": _entry(
         "read",
         EVERYONE,
-        "A client's report numbers, daily or weekly, newest first.",
+        "A client's report numbers, daily or weekly, newest first. Or one row of numbers by its id.",
         metrics_get,
         {
+            "id": _p("string", "One numbers row's id (with period, if it is a daily row)."),
             "client": CLIENT_P,
             "period": _p("string", "'weekly' (default) or 'daily'."),
             "date_from": _p("string", "Only from this date, for example 2026-10-01."),
             "date_to": _p("string", "Only up to this date."),
             "page": PAGE_P,
         },
-        ["client"],
     ),
     "cards.create": _entry(
         "write",
@@ -1469,8 +1793,67 @@ ALL: Dict[str, Dict[str, Any]] = {
         "One second brain note in full, by its name (as in a [[link]]) or its path. Raw source files "
         "(raw/...) are not in the connector; a note's Raw: line only names its source. " + BRAIN_RULE,
         brain_read,
-        {"note": _p("string", "The note's name, for example 'Unhappy_Client_Call', or its path.")},
-        ["note"],
+        {"id": _p("string", "The note's name, for example 'Unhappy_Client_Call', or its path.")},
+        ["id"],
+        {"note": "id"},
+    ),
+    "brain.list": _entry(
+        "read",
+        EVERYONE,
+        "Every second brain note (its id, area and path), 100 a page, or only one area's. " + BRAIN_RULE,
+        brain_list,
+        {"area": _p("string", "Only this area (from brain.index)."), "page": PAGE_P},
+    ),
+    "skills.list": _entry(
+        "read",
+        EVERYONE,
+        "The team's skills you may run: each one's id, what it does and when to use it, where it runs and the "
+        "keys it needs. Owner skills (sales and deals) are for Owners and Admins.",
+        skills_list,
+        {"area": _p("string", "Only 'fulfilment', 'owner' or 'global'.")},
+    ),
+    "skills.read": _entry(
+        "read",
+        EVERYONE,
+        "One skill in full: its steps (SKILL.md), its files, where it runs and the keys it needs. Give 'file' to "
+        "read one of its files (a script or a reference). Follow the steps to run it.",
+        skills_read,
+        {
+            "id": _p("string", "The skill's id from skills.list, for example 'search-client'."),
+            "file": _p("string", "One of its files, for example 'scripts/run.py'."),
+        },
+        ["id"],
+    ),
+    "db.read": _entry(
+        "read",
+        EVERYONE,
+        "Read rows from any table in the database as you (only what the database's rules let you see), 100 a "
+        "page. One row by its id, or rows by filters. Use the named actions first; this is for what they "
+        "do not cover. SCHEMAS.md lists the tables and columns.",
+        db_read,
+        {
+            "table": _p("string", "The table, for example 'clients'."),
+            "id": _p("string", "One row's id."),
+            "filters": _p("object", 'Columns to match, for example {"status": "Active", "due_date": "lt.2026-11-01"}.'),
+            "columns": _p("string", "The columns to give, for example 'id,client_name'. Default: all you may see."),
+            "order": _p("string", "Sort by a column, for example 'created_at.desc'."),
+            "page": PAGE_P,
+        },
+        ["table"],
+    ),
+    "db.write": _entry(
+        "write",
+        EVERYONE,
+        "Change one row (give its id) or add a row (no id) in any table, as you: the database's rules decide, "
+        "the same as in the app. Nothing can be deleted. Use the named actions first (cards.move, cards.update, "
+        "docs.write ...); this is for what they do not cover.",
+        db_write,
+        {
+            "table": _p("string", "The table, for example 'clients'."),
+            "id": _p("string", "The row to change. Leave it out to add a row."),
+            "fields": _p("object", 'The columns to write, for example {"notes": "Called them."}.'),
+        },
+        ["table", "fields"],
     ),
     "docs.read": _entry(
         "read",
@@ -1480,6 +1863,8 @@ ALL: Dict[str, Dict[str, Any]] = {
         "for the client page. cards.get and clients.get show each document's first 500 characters.",
         docs_read,
         DOC_PARAMS,
+        None,
+        {"document": "id"},
     ),
     "docs.write": _entry(
         "write",
@@ -1494,6 +1879,7 @@ ALL: Dict[str, Dict[str, Any]] = {
             version=_p("integer", "The version you read with docs.read (0 if it is not written yet)."),
         ),
         ["body_md", "version"],
+        {"document": "id"},
     ),
     "clients.update": _entry(
         "write",
@@ -1559,6 +1945,13 @@ class Registry:
         schema = self.entries[name]["schema"]
         props, required = schema["properties"], schema["required"]
         params = dict(params or {})
+        for old, new in self.entries[name].get("aliases", {}).items():
+            if old in params:
+                value = params.pop(old)
+                if params.get(new) not in (None, "") and value not in (None, "") and params[new] != value:
+                    raise ActionError("Give {0} once: '{1}' is the old name of '{0}'.".format(new, old))
+                if params.get(new) in (None, ""):
+                    params[new] = value
         unknown = sorted(set(params) - set(props))
         if unknown:
             raise ActionError(

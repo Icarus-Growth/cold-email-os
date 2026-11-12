@@ -1,8 +1,8 @@
 """Make a new client's notes folder from clients/_template/. Run it from the repo root.
 
-    python3 .claude/skills/create-client/scripts/create_client.py --name "Acme Corp"
-    python3 .claude/skills/create-client/scripts/create_client.py --name "Acme Corp" --folder acme
-    python3 .claude/skills/create-client/scripts/create_client.py --name "Acme Corp" --dry-run
+    python3 skills/global/create-client/scripts/create_client.py --name "Acme Corp"
+    python3 skills/global/create-client/scripts/create_client.py --name "Acme Corp" --folder acme
+    python3 skills/global/create-client/scripts/create_client.py --name "Acme Corp" --dry-run
 
 It copies every file in clients/_template/ to clients/<folder>/ and writes the client's
 name where the template says {{CLIENT_NAME}}. The folder name comes from the client's

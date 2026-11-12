@@ -45,7 +45,8 @@ where id = 'cccccccc-0000-4000-8000-000000000002';
 
 -- Cold email examples ---------------------------------------------------------
 update public.clients set campaign_manager_id = 'aaaaaaaa-0000-4000-8000-000000000002',
-       target_market = 'Example: owners of small accounting firms'
+       target_market = 'Example: owners of small accounting firms',
+       monthly_send_volume = 20000
 where is_example;
 
 insert into public.campaigns (campaign_name, client_id, stage, assignee_id, reviewer_id, sending_tool, angle, list_size, due_date, is_example) values

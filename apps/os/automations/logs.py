@@ -19,11 +19,12 @@ import sys
 APP = "agency-os-automations"
 _LINK = re.compile(r"(/mcp/s/)[^/\s?\"']+")
 _BEARER = re.compile(r"(?i)(bearer\s+)[^\s\"',]+")
+_HEADER = re.compile(r"(?i)(x-auth-token[\"']?\s*[:=]\s*[\"']?)[^\s\"',]+")
 
 
 def mask(line: str) -> str:
     """Hide connector tokens in one log line. Pure."""
-    return _BEARER.sub(r"\1***", _LINK.sub(r"\1***", line))
+    return _HEADER.sub(r"\1***", _BEARER.sub(r"\1***", _LINK.sub(r"\1***", line)))
 
 
 def main(args: list) -> int:

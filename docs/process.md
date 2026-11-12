@@ -7,12 +7,14 @@ Interview questions, because a different process changes the tables.
 0 Paid → 10 Contract Sent → 20 Contract Signed → 30 Set-Up → 40 Call Booked → 50 Call Taken → 100 Onboarded.
 Set-Up covers: the client's Slack channel, the shared folder, the onboarding form, and access to the tools you send from.
 
-## 2. Domains and inboxes (inbox batches, no board)
+## 2. Domains and inboxes (the Inbox set-ups board)
 Approve the number of domains and inboxes → buy the domains → set up the inboxes → warm them up → ready to send.
-A client can get more batches over time.
+One card is one batch for one client. A client can get more batches over time.
+A batch is finished at "100 - Ready To Send".
 
 ## 3. Campaigns (the Campaigns board)
 Build the list → write the copy → fix the copy (bounce-back) → client review → client changes (bounce-back) → ready to launch → live → ended.
+A live campaign is not finished. It stays on My Work until it ends ("100 - Ended").
 
 ## 4. Reporting (daily and weekly numbers)
 Emails sent, replies, positive replies, meetings booked, bounce rate, per client, per day and per week.

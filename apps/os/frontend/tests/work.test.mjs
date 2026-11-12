@@ -24,7 +24,7 @@ const REV = { id: 'rv', full_name: 'Rita Reviewer', access: 'Member', status: 'A
 const TEAM = [OWNER, AM, ED, REV];
 
 const TASKS = { table: 'tasks', label: 'Tasks', item: 'task', nameKey: 'task_name', stageKey: 'stage', closed: ['100 - Complete', '-1 - Rejected'] };
-const VIDEOS = { table: 'videos', label: 'Videos', item: 'video', nameKey: 'video_title', stageKey: 'stage', closed: ['100 - Posted'] };
+const VIDEOS = { table: 'videos', label: 'Videos', item: 'video', nameKey: 'video_title', stageKey: 'stage', closed: ['100 - Posted'], live: ['60 - Scheduled'] };
 
 /* The same shape as alert_rules.json: a "new card" rule for every board, then stage rules. */
 const RULES = [
@@ -86,6 +86,20 @@ test('open work leaves out finished stages, and reads due, late, since and moved
   assert.deepEqual([a.board, a.name, a.waiter, a.due, a.late, a.since, a.lastBy], ['Tasks', 'Task a', 'ed', '2026-10-27', true, '2026-10-20T09:00:00Z', 'am']);
   const today = W.openWork(src({ tasks: [task('d', '10 - In Progress', { due_date: '2026-10-28' })] }))[0];
   assert.equal(today.late, false);
+});
+
+test('a live card stays on My Work, is never late, and comes after the work that waits', () => {
+  const all = W.openWork(src({
+    videos: [
+      { id: 'live-old-due', video_title: 'V1', stage: '60 - Scheduled', client_id: 'c1', assignee_id: 'ed', due_date: '2026-09-01' },
+      { id: 'posted', video_title: 'V2', stage: '100 - Posted', client_id: 'c1', assignee_id: 'ed' },
+    ],
+    tasks: [task('fresh', '10 - In Progress', { assignee_id: 'ed', due_date: '2026-12-01' })],
+  }));
+  assert.deepEqual(all.map((w) => w.id).sort(), ['fresh', 'live-old-due']);
+  const live = all.find((w) => w.id === 'live-old-due');
+  assert.deepEqual([live.live, live.late], [true, false]);
+  assert.deepEqual(W.waitsOnYou(all, 'ed').map((w) => w.id), ['fresh', 'live-old-due']);
 });
 
 test('waits on you: late first, then due soonest, then longest in its stage', () => {

@@ -126,7 +126,13 @@ def test_tab_5_sends_the_key_in_a_header_and_warns_about_the_claude_ai_link():
     tab5 = (AUTOMATIONS.parents[2] / "docs" / "5-mcp.md").read_text()
     step4 = tab5.split("## Step 4.")[1].split("## Step 5.")[0]
     lines = {line.split(":**")[0].strip(" -*"): line for line in step4.splitlines() if ":**" in line}
-    assert set(lines) == {"Claude Code", "Codex", "Hermes", "Claude on the web (claude.ai)"}
+    assert set(lines) == {"Claude Code", "Codex", "Hermes", "Claude on the web (claude.ai)", "Any other AI tool"}
+    assert list(lines)[0] == "Claude on the web (claude.ai)"  # the box shows its link first too
+    web = lines["Claude on the web (claude.ai)"]
+    assert 'Settings, Connectors, Add custom connector. Name: Agency OS. Pick "No sign-in". Paste this link as the URL' in web
+    assert "`<link>`" in web and "The link holds the key." in web  # the same words as the box (Frank's ai box)
+    assert "last 4 characters" in tab5 and "**Copy**" in tab5
+    assert "x-auth-token: <key>" in lines["Any other AI tool"]
     for tool in ("Claude Code", "Codex", "Hermes"):
         assert '"<server>"' in lines[tool] and "Bearer <key>" in lines[tool] and "/mcp/s/" not in lines[tool], tool
     assert '--header "Authorization: Bearer <key>"' in lines["Claude Code"]

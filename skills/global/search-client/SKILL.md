@@ -1,6 +1,10 @@
 ---
 name: search-client
 description: Finds everything about one client - its row in the OS database, its cards on every board, its calls, forms, report numbers and stage history, and its notes in clients/<client-name>/ - from a name, part of a name, an email or a row id. Read only. Use when the user asks "what do we have on <client>?", "find <client>", "which client is this email?", "what is going on with <client>?" or before any work on one client.
+area: global
+agency: all
+needs: [SUPABASE_URL, SUPABASE_SECRET_KEY]
+runs_on: either
 ---
 
 # Search client
@@ -27,9 +31,9 @@ A database row and a notes folder with the same name are the same client.
 
 1. Take what the user gave: a name (or part of one), an email, or the client's row id.
 2. Run one of:
-   - `python3 .claude/skills/search-client/scripts/search_client.py "Acme"`
-   - `python3 .claude/skills/search-client/scripts/search_client.py --email jane@example.com`
-   - `python3 .claude/skills/search-client/scripts/search_client.py --id <row id>`
+   - `python3 skills/global/search-client/scripts/search_client.py "Acme"`
+   - `python3 skills/global/search-client/scripts/search_client.py --email jane@example.com`
+   - `python3 skills/global/search-client/scripts/search_client.py --id <row id>`
 3. If it lists more than one client, show the list and ask which one. Then run it again with the
    full name or `--id`.
 4. If the match says "check it", ask the user if it is the right client before you go on.

@@ -1,4 +1,4 @@
--- SQL editor paste 8 of 15: 0009_team_admin_only.sql
+-- SQL editor paste 8 of 19: 0009_team_admin_only.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

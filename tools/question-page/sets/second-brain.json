@@ -1,0 +1,21 @@
+{
+  "id": "second-brain",
+  "title": "Second brain set-up",
+  "intro": "These answers decide how your second brain is built. The areas become folders of notes. Your answers go into second-brain/INDEX.md and DECISIONS.md.",
+  "questions": [
+    { "id": "whose", "text": "Whose thinking goes in the second brain?", "dest": "decision",
+      "parts": [ { "k": "who", "type": "single", "opts": ["Mine alone", "The whole team's"] } ] },
+    { "id": "areas", "text": "Which areas does your thinking fall into?", "dest": "brain",
+      "help": "Pick 5 to 10. Each one becomes a folder of notes. The AI suggested these from your agency process.",
+      "parts": [ { "k": "areas", "type": "multi", "opts": ["Sales", "Offers", "Delivery", "Copy and creative", "Client results", "Team and hiring", "Tools and automations"] },
+                 { "k": "more", "type": "textarea", "label": "Other areas, one per line", "ph": "For example: pricing" } ] },
+    { "id": "where", "text": "Where are your notes now?", "dest": "chat",
+      "help": "To use them, put the files or an export in second-brain/inbox/ in this repo. Never give a password.",
+      "parts": [ { "k": "where", "type": "multi", "opts": ["A folder on this computer", "Google Docs", "Notion", "Voice notes", "Nowhere yet"] },
+                 { "k": "inbox", "type": "single", "label": "What does the AI fill the brain from?", "opts": ["I put files in the inbox folder", "Use only my answers on this page"] },
+                 { "k": "path", "type": "text", "label": "Folder path, if the notes are on this computer" } ] },
+    { "id": "strict", "text": "How strict should the AI be with your old notes?", "dest": "decision",
+      "help": "This is the share of old notes that become notes in the brain. A clear rule about how you work is always kept.",
+      "parts": [ { "k": "pct", "type": "single", "opts": ["About 20%", "About 40%", "About 60%"] } ] }
+  ]
+}

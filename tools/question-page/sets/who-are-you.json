@@ -1,0 +1,22 @@
+{
+  "id": "who-are-you",
+  "title": "Who are you",
+  "intro": "One page per person who works with the AI in this repo. Your name, role and access go into CLAUDE.md, under The team and roles. The rest tells the AI how to work with you.",
+  "questions": [
+    { "id": "name", "text": "What is your name, and what is your job in the agency?", "dest": "team",
+      "parts": [ { "k": "name", "type": "text", "label": "Your name" }, { "k": "role", "type": "text", "label": "Your job", "ph": "For example: account manager, editor, media buyer" } ] },
+    { "id": "access", "text": "What access do you have in the OS?", "dest": "team",
+      "help": "Owner and Admin can add people and change anyone's details. Member can change only their own details. Ask the owner if you are not sure.",
+      "parts": [ { "k": "access", "type": "single", "opts": ["Owner", "Admin", "Member"] } ] },
+    { "id": "week", "text": "What do you do in a normal week?", "dest": "team",
+      "help": "A few lines. For example: I write the copy for new campaigns and fix it after client feedback.",
+      "parts": [ { "k": "week", "type": "textarea", "label": "Your week" } ] },
+    { "id": "answers", "text": "How do you want the AI to answer you?", "dest": "team",
+      "parts": [ { "k": "style", "type": "single", "opts": ["Short and plain", "Step by step", "Detailed, with the reasons"] } ] },
+    { "id": "ask_first", "text": "What must the AI never do without asking you first?", "dest": "team",
+      "help": "For example: send anything to a client, spend money, delete a card.",
+      "parts": [ { "k": "never", "type": "textarea", "label": "Ask me first before" } ] },
+    { "id": "ai_tool", "text": "Which AI tool do you use?", "dest": "team",
+      "parts": [ { "k": "tool", "type": "single", "opts": ["Claude Code", "Claude on the web", "Codex", "Grok", "Hermes"] } ] }
+  ]
+}

@@ -154,10 +154,11 @@ def test_the_summary_main_message_and_thread():
 def test_each_person_is_tagged_once():
     slack = FakeSlack()
     run_daily_summary(summary_world(), slack, CFG, {}, scheduled=False, now_utc=TUESDAY_8)
-    everything = "\n".join(p["text"] for p in slack.posts)
+    summary = [p for p in slack.posts if p["channel"] == "chan-daily-summary"]  # not the direct messages
+    everything = "\n".join(p["text"] for p in summary)
     assert everything.count("<@UMAKER>") == 1
     assert everything.count("<@UANA>") == 1  # reviewer in act today, then plain name as account manager
-    assert "Ana Manager" in slack.posts[-1]["text"]
+    assert "Ana Manager" in summary[-1]["text"]
 
 
 def test_reads_go_in_pages_of_500_and_stop_at_20():

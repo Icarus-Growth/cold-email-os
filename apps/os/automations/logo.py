@@ -4,7 +4,8 @@
         Get the logo for that domain from logo.dev as a 512 x 512 PNG, and save it at
         apps/os/frontend/public/slack-logo.png. Open the file to check it before you use it.
     python3 apps/os/automations/logo.py check https://app.youragency.com/slack-logo.png
-        After the OS is deployed again: the address shows a PNG, so Slack can show it.
+        After the OS is deployed again: the address shows a PNG, so Slack can show it. A failed
+        look waits 30 seconds and tries again, 3 times, before it says FAIL.
 
 Slack needs a web address for the picture, not the picture itself. So the PNG is kept in
 the OS app (it is published with the OS) and SLACK_ICON_URL holds its address.
@@ -14,11 +15,12 @@ from __future__ import annotations
 
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import List
+from typing import Callable, List, Tuple
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
@@ -75,19 +77,48 @@ def cmd_fetch(domain: str) -> int:
     return 0
 
 
-def cmd_check(url: str) -> int:
+TRIES_AFTER_FIRST = 3
+WAIT_SECONDS = 30
+
+
+def check_once(url: str) -> Tuple[bool, str]:
+    """(passed, what it saw) for one look at the address."""
     req = urllib.request.Request(url, headers={"User-Agent": "agency-os-logo"})
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = resp.read(16)
             kind = resp.headers.get("Content-Type", "")
     except urllib.error.HTTPError as e:
-        print("FAIL: {0} answered {1}. Deploy the OS again (tab 2), then check again.".format(url, e.code))
-        return 1
+        return False, "it answered {0}".format(e.code)
+    except (urllib.error.URLError, OSError) as e:
+        return False, "it could not be reached ({0})".format(getattr(e, "reason", e))
     if data.startswith(PNG):
-        print("PASS: {0} shows the PNG ({1}). Put this address in SLACK_ICON_URL.".format(url, kind))
-        return 0
-    print("FAIL: {0} does not show a PNG ({1}). The OS may be sending its main page instead.".format(url, kind))
+        return True, kind
+    return False, "it does not show a PNG ({0}); the OS may be sending its main page".format(kind or "no type")
+
+
+def cmd_check(
+    url: str,
+    look: Callable[[str], Tuple[bool, str]] = check_once,
+    wait: Callable[[float], None] = time.sleep,
+) -> int:
+    """A fresh deploy can take about a minute to show a new file. So a failed look waits 30
+    seconds and looks again, 3 more times (about 90 seconds), before it fails."""
+    for attempt in range(TRIES_AFTER_FIRST + 1):
+        passed, seen = look(url)
+        if passed:
+            print("PASS: {0} shows the PNG ({1}). Put this address in SLACK_ICON_URL.".format(url, seen))
+            return 0
+        if attempt < TRIES_AFTER_FIRST:
+            print(
+                "Not yet: {0}. A new deploy can take a minute. Waiting {1} seconds, then trying again "
+                "({2} of {3}).".format(seen, WAIT_SECONDS, attempt + 1, TRIES_AFTER_FIRST)
+            )
+            wait(WAIT_SECONDS)
+    print(
+        "FAIL: {0}: {1}, after {2} tries over about {3} seconds. Deploy the OS again (tab 2), "
+        "then check again.".format(url, seen, TRIES_AFTER_FIRST + 1, TRIES_AFTER_FIRST * WAIT_SECONDS)
+    )
     return 1
 
 

@@ -20,6 +20,8 @@ Work through the steps below in order. After each step, tell me what you did in 
 
 1. `python3 apps/os/backend/db.py query "select full_name, email, access, can_sign_in from public.team where access = 'Owner'"`. It must show me as the Owner, with `can_sign_in` true. If not, **STOP** and tell me to finish tab 1, step 6.
 2. `node --version`. It must be 20 or higher. If not, ask me to install Node.js LTS from nodejs.org, then check again.
+3. Open `CLAUDE.md`. If its first line still says `<agency name>`, or "About the business" still says `<not answered yet>`, open the business set-up question page: `python3 tools/question-page/make.py business`. If no browser opens, give me the file path it prints. **STOP** until I paste the answers back.
+   Then write each answer where its line says `[goes to: ...]`. Put my agency name and my name in place of `<agency name>` and `<owner name>` everywhere in `CLAUDE.md`, the first line too. A choice goes in `DECISIONS.md`, one line: date, question, answer, why. A skipped question stays `<not answered yet>`. `CLAUDE.md` stays at 50 lines or fewer: check with `python3 tests/agents_md_check.py`.
 
 ## Step 2. Cloudflare
 
@@ -124,10 +126,11 @@ Tab 1 put me on the team list as the Owner. Now I need a login with a password.
 2. I add each person myself, in the OS: Team → **Add team member**. The OS makes their login and shows me a message with the OS address, their email and a temporary password, once, with a Copy button. I send it to them. At their first sign-in, they choose their own password. (After tab 3, the same message also goes to them in Slack.)
 3. Someone lost their password: their page in Team → **Resend access**. Someone leaves: untick **Can sign in** on their page.
 4. **STOP** until I say I added everyone. Then show me the list: `python3 apps/os/backend/db.py query "select full_name, email, access, can_sign_in from public.team order by full_name"`.
+5. Open the "who are you" question page for me: `python3 tools/question-page/make.py who-are-you`. **STOP** until I paste the answers. Write one line for me under "The team and roles" in `CLAUDE.md`: name, job, access, and how I want the AI to answer. Add one line for each other person from the list above (name, job, access). Anyone who later works with the AI in this repo fills the same page, and their line is updated.
 
 ## Step 9. Check it together
 
-1. Ask me to open the OS and look at: My Work (the first screen: what waits on me), the Dashboard, the Tasks screen (one tab per board: **Tasks, Campaigns**), and Clients. The example rows from tab 1 must show. On Tasks, the Assignee filter starts on **Me**; I pick **Everyone** to see every example card.
+1. Ask me to open the OS and look at: My Work (the first screen: what waits on me), the Dashboard, the Tasks screen (one tab per board: **Tasks, Campaigns, Inbox set-ups**), and Clients. The example rows from tab 1 must show. On Tasks, the Assignee filter starts on **Me**; I pick **Everyone** to see every example card.
 2. Ask me to open an example client, press **Copy form link**, and open the link in a private browser window. The onboarding form must show, with the client's company name.
 3. Show me the settings row: `python3 apps/os/backend/db.py query "select os_url, onboarding_url from public.settings"`. Both must be the live addresses (`https://...`), with no `pages.dev`.
    **No domain:** both must be the `https://...pages.dev` addresses from Step 5 and Step 6.
@@ -136,16 +139,16 @@ If anything does not show, **STOP** and tell me what I saw and what I should hav
 
 ## Step 10. Write DECISIONS.md
 
-Under a heading with today's date, add:
+Add one line for each of these (date, question, answer, why):
 - a new domain, a subdomain or no domain for now, and the OS address;
 - the onboarding form address;
 - where my main domain's records are kept (Cloudflare, Porkbun or another company);
 - the two Cloudflare Pages project names (the OS: `agency-os` unless `OS_PROJECT` is set; the form: `onboarding-form` unless `ONBOARDING_PROJECT` is set);
 - who is on the team, with their access (no emails or passwords).
 
-## Step 11. Update CLAUDE.md and AGENTS.md
+## Step 11. Update CLAUDE.md and OS_BUILD_RULES.md
 
-Add a short "OS" part to `CLAUDE.md`, then make `AGENTS.md` the same text, word for word:
+Add a short "OS" part at the end of `OS_BUILD_RULES.md`, under "Parts added by the set-up tabs":
 
 - The screens are in `apps/os/frontend/`. The boards, stages and fields are in `apps/os/frontend/src/agency.config.ts`. Colours are in `apps/os/frontend/src/theme.css` only.
 - After a change to a stage list, run `python3 tests/config_matches_db.py`. It must say PASS.
@@ -153,9 +156,11 @@ Add a short "OS" part to `CLAUDE.md`, then make `AGENTS.md` the same text, word 
   **No domain:** write these two commands instead: `python3 apps/os/frontend/tools/deploy.py` and `python3 apps/onboarding/tools/deploy.py`, and add: "No domain yet. Do not add `--domain`. To add one, do tab 2 again from Step 3."
 - `apps/os/frontend/src/ui/` holds the screen parts every screen uses. Change them with care: a change shows on every screen.
 
-Under "Built so far", add one line: "OS: live at <OS address>, onboarding form at <form address>, set up on <date>."
+In `CLAUDE.md`:
+- Under "Built so far", add one line: "OS: live at <OS address>, onboarding form at <form address>, set up on <date>."
+- Under "The team and roles", write one line per team member you added: name, role, access.
 
-Both files must stay under 150 lines. Check with `python3 tests/agents_md_check.py`.
+`CLAUDE.md` must stay at 50 lines or fewer, and `AGENTS.md` stays one line. Check with `python3 tests/agents_md_check.py`.
 
 ## Step 12. Read back the check list
 
@@ -169,6 +174,6 @@ Read this list back to me. Put ✓ or ✗ in front of each line, from what you s
 - I signed in and chose my own password.
 - Every team member is added (list their names).
 - An example client's form link opens the form.
-- `DECISIONS.md`, `CLAUDE.md` and `AGENTS.md` are updated, and `agents_md_check.py` passes.
+- `DECISIONS.md`, `CLAUDE.md` and `OS_BUILD_RULES.md` are updated, and `agents_md_check.py` passes.
 
 If any line is ✗, tell me what is left to do. If all are ✓, commit everything (never `.env`) with the message "OS set up", and tell me the next tab to open: **Tab 3, automations.**

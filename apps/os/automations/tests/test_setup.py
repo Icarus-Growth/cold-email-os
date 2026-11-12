@@ -82,4 +82,4 @@ def test_the_deploy_steps_explain_the_scheduled_job_limit():
     for tab in ("4-second-brain.md", "5-mcp.md"):
         assert "reached limit of 5 scheduled functions" in (docs / tab).read_text(), tab
     # The text says the app needs one scheduled job. Keep it true.
-    assert (AUTOMATIONS / "app.py").read_text().count("schedule=modal.") == 1
+    assert (AUTOMATIONS / "app.py").read_text().count("schedule=") == 1  # summary_schedule(): hourly or "off"

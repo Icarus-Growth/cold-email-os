@@ -2,9 +2,11 @@
 
 It runs inside the automations' Modal app, in the same web address:
 
-    <OS_AUTOMATIONS_URL>/mcp/               with "Authorization: Bearer <token>" (kept out of logs)
+    <OS_AUTOMATIONS_URL>/mcp/               with "Authorization: Bearer <token>" or "x-auth-token: <token>"
+                                            (kept out of logs)
     <OS_AUTOMATIONS_URL>/mcp/s/<token>/     the same, for tools that take only an address. Modal's
                                             request log keeps this address, token and all.
+    Both answer with or without the last "/" (SlashFix).
     POST <OS_AUTOMATIONS_URL>/mcp/token     the OS's "Connect your AI" and "Revoke" buttons;
                                             "issue" answers {server, key, url} (see issued())
 
@@ -40,6 +42,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import time
 import traceback
@@ -61,6 +64,52 @@ TEAM_IDENTITY = "id,full_name,email,access,status,can_sign_in"
 
 
 ROLE_ORDER = ("Owner", "Admin", "Member")
+NO_PUBLISHABLE = (
+    "The database actions are not set up: SUPABASE_PUBLISHABLE_KEY is missing from the agency-os Modal "
+    "secret. Tab 3 Step 7.5 stores it. Then deploy the automations again."
+)
+SESSION_SPARE_SECONDS = 300
+
+
+class Sessions:
+    """Each caller's own database sign-in, for db.read and db.write: the database's rules for
+    their access level apply, never the server's key. One sign-in per person is kept until five
+    minutes before it runs out (Supabase gives an hour), so a busy AI does not make a session per
+    call. A change to someone's access works at once anyway: the rules read the team table."""
+
+    def __init__(
+        self,
+        url: str,
+        secret_key: str,
+        publishable_key: str,
+        clock: Callable[[], float] = time.time,
+        sign_in: Optional[Callable[..., Dict[str, Any]]] = None,
+        make_db: Optional[Callable[..., Any]] = None,
+    ) -> None:
+        self.url, self.secret_key, self.publishable_key = url, secret_key, publishable_key
+        self.clock = clock
+        self._sign_in = sign_in
+        self._make_db = make_db
+        self._cache: Dict[str, Tuple[float, Any]] = {}
+
+    def db_for(self, me: Dict[str, Any]) -> Any:
+        if not self.publishable_key:
+            raise ActionError(NO_PUBLISHABLE)
+        email = (me.get("email") or "").strip().lower()
+        if not email:
+            raise ActionError("Your team row has no email, so the database cannot tell who you are.")
+        now = self.clock()
+        hit = self._cache.get(email)
+        if hit and now < hit[0]:
+            return hit[1]
+        from shared.supabase_client import Supabase, signed_in_as
+
+        session = (self._sign_in or signed_in_as)(email, self.url, self.secret_key)
+        db = (self._make_db or Supabase)(self.url, self.publishable_key, bearer=session["access_token"])
+        life = int(session.get("expires_in") or 3600)
+        self._cache[email] = (now + max(60, life - SESSION_SPARE_SECONDS), db)
+        return db
+
 
 
 def not_for_you(registry: Registry, name: str, role: Optional[str]) -> str:
@@ -119,8 +168,10 @@ class Connector:
         pepper: str,
         clock: Callable[[], float] = time.time,
         today: Any = None,
+        sessions: Optional[Sessions] = None,
     ) -> None:
         self.db = db
+        self.sessions = sessions
         self.registry = registry
         self.config = config
         self.pepper = pepper
@@ -132,7 +183,14 @@ class Connector:
     def from_env(cls) -> "Connector":
         from shared.supabase_client import Supabase
 
-        return cls(Supabase(), Registry(load_spec()), Config.load(), os.environ.get("MCP_TOKEN_PEPPER", ""))
+        sessions = Sessions(
+            os.environ.get("SUPABASE_URL", "").rstrip("/"),
+            os.environ.get("SUPABASE_SECRET_KEY", ""),
+            os.environ.get("SUPABASE_PUBLISHABLE_KEY", ""),
+        )
+        return cls(
+            Supabase(), Registry(load_spec()), Config.load(), os.environ.get("MCP_TOKEN_PEPPER", ""), sessions=sessions
+        )
 
     # ------------------------------------------------------------------ identity
 
@@ -206,6 +264,18 @@ class Connector:
             )
         except Exception:  # noqa: BLE001
             traceback.print_exc()
+
+    def revoked(self, caller: Dict[str, Any], target: Dict[str, Any], reason: str) -> None:
+        """One "revoked" row in the connector log for every key that stops working: the Revoke
+        button, or a new key that replaces an old one. The row is the key owner's (team_id), like
+        every other row of theirs; "by" says who pressed the button."""
+        self.audit(
+            {"me": target},
+            "revoked",
+            {"team_id": target.get("id"), "name": target.get("full_name"), "by": caller.get("full_name"),
+             "by_id": caller.get("id"), "reason": reason},
+            True,
+        )  # fmt: skip
 
     # ------------------------------------------------------------------ the five tools
 
@@ -287,7 +357,9 @@ class Connector:
             return finish(False, {"ok": False, "error": msg}, msg)
         try:
             args = self.registry.validate(name, args)
-            ctx = Context(self.db, who["me"], self.registry.spec, self.config, today=self.today)
+            me = who["me"]
+            caller_db = (lambda: self.sessions.db_for(me)) if self.sessions else None
+            ctx = Context(self.db, me, self.registry.spec, self.config, today=self.today, caller_db=caller_db)
             result = entry["handler"](ctx, **args)
         except ActionError as e:
             return finish(False, {"ok": False, "error": str(e)}, str(e))
@@ -332,13 +404,13 @@ class Connector:
         action = body.get("action")
         if len(team_id) != UUID_LEN or action not in ("issue", "revoke"):
             return 400, {"error": "Pick a person and an action first."}
-        target = self.db.get("team", team_id, columns=TEAM_IDENTITY)
+        target = self.db.get("team", team_id, columns=TEAM_IDENTITY + ",mcp_token_hash")
         if not target:
             return 404, {"error": "That person is not on the team list."}
         if action == "revoke":
             self.db.update("team", team_id, {"mcp_token_hash": None})
             self.forget(team_id)
-            self.audit(who, "token.revoke", {"team_id": team_id}, True)
+            self.revoked(caller, target, "Revoke button" if target.get("mcp_token_hash") else "Revoke button (no key)")
             return 200, {"revoked": True}
         if target.get("status") != "Active" or not target.get("can_sign_in"):
             return 400, {
@@ -350,6 +422,8 @@ class Connector:
         token = secrets.token_urlsafe(32)
         self.db.update("team", team_id, {"mcp_token_hash": token_hash(token, self.pepper)})
         self.forget(team_id)
+        if target.get("mcp_token_hash"):
+            self.revoked(caller, target, "replaced by a new key")
         self.audit(who, "token.issue", {"team_id": team_id}, True)
         return 200, issued(base_url, token)
 
@@ -409,23 +483,54 @@ INSTRUCTIONS = (
 )
 
 
-def link_token(authorization: str, path_params: Dict[str, Any]) -> Optional[str]:
-    """The person's token: from "Authorization: Bearer <token>" (the address is then plain /mcp/,
-    so the request log that Modal keeps never holds it), or from an /mcp/s/<token>/ address.
+def link_token(authorization: str, path_params: Dict[str, Any], auth_token: str = "") -> Optional[str]:
+    """The person's key: from "Authorization: Bearer <key>", or from "x-auth-token: <key>" (for tools
+    that let you add a header but not "Authorization"), or from an /mcp/s/<key>/ address. With a
+    header the address is plain /mcp/, so the request log that Modal keeps never holds the key.
     Never from the query string: a query string is logged too. Pure."""
     scheme, _, value = (authorization or "").strip().partition(" ")
     if scheme.lower() == "bearer" and value.strip():
         return value.strip()
+    if (auth_token or "").strip():
+        return auth_token.strip()
     found = path_params.get("token")
     return str(found) if found else None
+
+
+#: The connector's addresses without their last "/": "/mcp" and "/mcp/s/<key>".
+_NO_SLASH = re.compile(r"^/mcp(/s/[^/]+)?$")
+
+
+def with_slash(path: str) -> str:
+    """'/mcp' -> '/mcp/', '/mcp/s/<key>' -> '/mcp/s/<key>/'. Every other path is left as it is.
+    Claude on the web drops the last "/" of a link, and the bare form used to answer 404. Pure."""
+    return path + "/" if _NO_SLASH.match(path or "") else path
+
+
+class SlashFix:
+    """Lets the connector answer the same at /mcp and /mcp/, and at /mcp/s/<key> and /mcp/s/<key>/.
+    It changes the path before routing, so there is no redirect: a redirect drops the body of a
+    POST in some AI tools, and behind Modal it can point at http:// instead of https://."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Dict[str, Any], receive: Any, send: Any) -> None:
+        if scope.get("type") == "http":
+            fixed = with_slash(scope.get("path", ""))
+            if fixed != scope.get("path"):
+                scope = dict(scope, path=fixed, raw_path=fixed.encode("latin-1"))
+        await self.app(scope, receive, send)
 
 
 def mount_connector(api: Any, mcp_app: Any) -> None:
     """Put the connector on the web app. The token goes in the "Authorization: Bearer" header to
     /mcp/, so it is never in the address Modal writes in its request log. /mcp/s/<token>/ is for
-    tools that take only an address. The longer path goes first, or /mcp would take it."""
+    tools that take only an address. The longer path goes first, or /mcp would take it. SlashFix
+    makes both addresses work with or without their last "/"."""
     api.mount("/mcp/s/{token}", mcp_app)
     api.mount("/mcp", mcp_app)
+    api.add_middleware(SlashFix)
 
 
 def build_mcp_app(connector: Callable[[], Connector]):
@@ -441,7 +546,11 @@ def build_mcp_app(connector: Callable[[], Connector]):
             request = get_http_request()
         except Exception:  # noqa: BLE001
             return None
-        return link_token(request.headers.get("authorization", ""), getattr(request, "path_params", None) or {})
+        return link_token(
+            request.headers.get("authorization", ""),
+            getattr(request, "path_params", None) or {},
+            request.headers.get("x-auth-token", ""),
+        )
 
     async def call(fn: Callable[..., Dict[str, Any]], *args: Any) -> Dict[str, Any]:
         # The database calls block, so they run off the event loop.

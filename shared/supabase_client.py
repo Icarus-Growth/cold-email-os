@@ -13,6 +13,13 @@ browser.
     every = db.select_all("stage_log", {"changed_at": "gt.2026-10-26T08:00:00Z"})
     db.update("clients", "<row id>", {"slack_channel_id": "<channel id>"})
 
+To act as one signed-in person instead (their access level, the database's own rules), sign
+them in with `signed_in_as(email)` and pass the publishable key and their access token:
+
+    session = signed_in_as("max@youragency.com")          # needs SUPABASE_SECRET_KEY
+    as_max = Supabase(key=os.environ["SUPABASE_PUBLISHABLE_KEY"], bearer=session["access_token"])
+    as_max.update("settings", "1", {...})                 # [] back: the rules said no
+
 Filters use the Data API's own words: "eq.<value>", "gt.<value>", "is.null",
 "in.(a,b)". `select_all` reads in pages of at most 500 rows and stops after 20 pages,
 so no job ever reads a table in one go.
@@ -54,9 +61,14 @@ def load_dotenv(path: str = ".env") -> None:
 
 
 class Supabase:
-    def __init__(self, url: Optional[str] = None, key: Optional[str] = None, timeout: int = 30) -> None:
+    def __init__(
+        self, url: Optional[str] = None, key: Optional[str] = None, timeout: int = 30, bearer: Optional[str] = None
+    ) -> None:
+        """bearer: a signed-in person's access token. Every call then runs as that person, with the
+        database's rules for their access level. Without it, the key itself is the caller."""
         self.url = (url or os.environ.get("SUPABASE_URL") or "").rstrip("/")
         self.key = key or os.environ.get("SUPABASE_SECRET_KEY") or ""
+        self.bearer = bearer
         self.timeout = timeout
         if not self.url or not self.key:
             raise SupabaseError("SUPABASE_URL and SUPABASE_SECRET_KEY must both be set")
@@ -76,7 +88,7 @@ class Supabase:
             url += "?" + urllib.parse.urlencode(params, safe="(),.:*")
         headers = {
             "apikey": self.key,
-            "Authorization": "Bearer " + self.key,
+            "Authorization": "Bearer " + (self.bearer or self.key),
             "Content-Type": "application/json",
         }
         if prefer:
@@ -161,3 +173,42 @@ class Supabase:
 
     def rpc(self, function: str, args: Optional[Dict[str, Any]] = None) -> Any:
         return self.request("POST", "rpc/" + function, body=args or {})
+
+
+def _auth_post(url: str, path: str, key: str, body: Dict[str, Any], timeout: int) -> Dict[str, Any]:
+    req = urllib.request.Request(
+        "{0}/auth/v1/{1}".format(url, path),
+        method="POST",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"apikey": key, "Authorization": "Bearer " + key, "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8") or "{}")
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="ignore")[:300]
+        raise SupabaseError("sign-in step {0} failed ({1}): {2}".format(path, e.code, detail))
+    except urllib.error.URLError as e:
+        raise SupabaseError("sign-in step {0} could not reach the database: {1}".format(path, e.reason))
+
+
+def signed_in_as(
+    email: str, url: Optional[str] = None, secret_key: Optional[str] = None, timeout: int = 30
+) -> Dict[str, Any]:
+    """A real Supabase sign-in for one existing user, made by the server: {"access_token",
+    "expires_in", ...}. Two Supabase Auth calls with the secret key: make a one-time sign-in code
+    (admin/generate_link, which sends no email), then trade it for a session (verify). The token
+    acts as that person, under the database's rules for their access level, never as the server.
+    Each call makes a new session in Supabase Auth, so keep the token until it runs out."""
+    url = (url or os.environ.get("SUPABASE_URL") or "").rstrip("/")
+    secret_key = secret_key or os.environ.get("SUPABASE_SECRET_KEY") or ""
+    if not url or not secret_key:
+        raise SupabaseError("SUPABASE_URL and SUPABASE_SECRET_KEY must both be set")
+    link = _auth_post(url, "admin/generate_link", secret_key, {"type": "magiclink", "email": email}, timeout)
+    hashed = link.get("hashed_token") or (link.get("properties") or {}).get("hashed_token")
+    if not hashed:
+        raise SupabaseError("sign-in step admin/generate_link gave no code for {0}".format(email))
+    session = _auth_post(url, "verify", secret_key, {"type": "magiclink", "token_hash": hashed}, timeout)
+    if not session.get("access_token"):
+        raise SupabaseError("sign-in step verify gave no session for {0}".format(email))
+    return session

@@ -9,7 +9,7 @@ import { insert, useData } from '../lib/store';
 import { listOf, recordDef } from '../lib/schema';
 import { navigate, openCard } from '../lib/router';
 import { CALL_FIELDS, CLIENT_CREATE } from '../core.config';
-import { clientOptions } from '../areas/records/fields';
+import { cardOptions, clientOptions } from '../areas/records/fields';
 import { CLIENT_SECTIONS } from '../areas/clients';
 import { AddMember } from '../areas/team';
 
@@ -81,6 +81,7 @@ function CreateForm({ table, spec, defaults }: { table: string; spec: Spec; defa
       <form className="space-y-3" data-create={table} onSubmit={(e) => { e.preventDefault(); if (!missing) submit(); }}>
         {spec.fields.map((f, i) => {
           const pick = f.type === 'person' ? people : f.type === 'client' ? clientOptions(S)
+            : f.type === 'card' ? cardOptions(S, f, { id: '', client_id: form.client_id || null })
             : f.type === 'choice' ? listOf(f.list).map((o): [string, string] => [o, o]) : null;
           const type = f.type === 'date' ? 'date' : f.type === 'datetime' ? 'datetime-local' : f.type === 'month' ? 'month'
             : f.type === 'email' ? 'email' : f.type === 'url' ? 'url'
@@ -90,7 +91,7 @@ function CreateForm({ table, spec, defaults }: { table: string; spec: Spec; defa
               <span className="block text-[12.5px] text-muted mb-1">{f.label}{f.required ? '' : ' (optional)'}</span>
               {pick ? (
                 <select className={box} value={form[f.key] || ''} onChange={(e) => set(f.key, e.target.value)}>
-                  <option value="">{f.required ? 'Pick one' : f.type === 'person' ? 'Nobody yet' : 'Leave blank'}</option>
+                  <option value="">{f.required ? 'Pick one' : f.type === 'person' ? 'Nobody yet' : f.type === 'card' ? 'None' : 'Leave blank'}</option>
                   {pick.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               ) : (
