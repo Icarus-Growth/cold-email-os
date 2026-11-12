@@ -1,0 +1,33 @@
+{
+  "id": "business",
+  "title": "Business set-up",
+  "intro": "These answers tell every AI in this repo what your agency is. The facts go into CLAUDE.md, under About the business. Your choices go into DECISIONS.md.",
+  "questions": [
+    { "id": "names", "text": "What is your agency called, and what is your name?", "dest": "about",
+      "parts": [ { "k": "agency", "type": "text", "label": "Agency name" }, { "k": "owner", "type": "text", "label": "Your name" } ] },
+    { "id": "sell", "text": "What do you sell?", "dest": "about",
+      "help": "One or two lines, in your own words. For example: done-for-you campaigns that book sales calls.",
+      "parts": [ { "k": "sell", "type": "textarea", "label": "What you sell" } ] },
+    { "id": "buyers", "text": "Who do you sell to?", "dest": "about",
+      "help": "The kind of company, its size, and the person who says yes.",
+      "parts": [ { "k": "buyers", "type": "textarea", "label": "Who buys" } ] },
+    { "id": "find", "text": "How do new clients find you?", "dest": "about",
+      "parts": [ { "k": "find", "type": "multi", "opts": ["Referrals", "Cold email", "Paid ads", "Content and social", "Partners", "Events"] },
+                 { "k": "other", "type": "text", "label": "Other ways" } ] },
+    { "id": "clients", "text": "How many clients do you have now, and how many do you want in 12 months?", "dest": "about",
+      "parts": [ { "k": "now", "type": "text", "label": "Clients now" }, { "k": "goal", "type": "text", "label": "Clients in 12 months" } ] },
+    { "id": "billing", "text": "How do clients pay you?", "dest": "about",
+      "parts": [ { "k": "billing", "type": "single", "opts": ["A monthly retainer", "Per result", "A project fee", "A mix"] } ] },
+    { "id": "team_size", "text": "How many people work in the agency, you included?", "dest": "about",
+      "parts": [ { "k": "size", "type": "single", "opts": ["Just me", "2 to 5", "6 to 15", "More than 15"] } ] },
+    { "id": "tools", "text": "Which tools does the team use every day?", "dest": "about",
+      "help": "Names only. Never a login or a key.",
+      "parts": [ { "k": "tools", "type": "multi", "opts": ["Slack", "Google Workspace", "Microsoft 365", "Notion", "ClickUp", "Airtable", "HubSpot"] },
+                 { "k": "other", "type": "text", "label": "Other tools" } ] },
+    { "id": "ai_tool", "text": "Which AI coding tool will you use with this OS?", "dest": "decision",
+      "parts": [ { "k": "tool", "type": "single", "opts": ["Claude Code", "Codex", "Grok", "Hermes", "More than one"] } ] },
+    { "id": "goal", "text": "What is the one goal this OS must help with this year?", "dest": "about",
+      "help": "Write it in your own words. The AI keeps your words.",
+      "parts": [ { "k": "goal", "type": "textarea", "label": "The goal" } ] }
+  ]
+}

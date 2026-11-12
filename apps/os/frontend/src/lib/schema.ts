@@ -42,6 +42,16 @@ export function isOpen(def: RecordDef, row: Record<string, unknown>): boolean {
   return def.closed.indexOf(String(row[def.stageKey])) < 0;
 }
 
+/** True while a card is in a live stage: open, but never late or stuck. */
+export function isLive(def: RecordDef, row: Record<string, unknown>): boolean {
+  return (def.live || []).indexOf(String(row[def.stageKey])) > -1;
+}
+
+/** True when a card's due date can make it late: open and not live. */
+export function canBeLate(def: RecordDef, row: Record<string, unknown>): boolean {
+  return isOpen(def, row) && !isLive(def, row);
+}
+
 /** A stage whose number ends in 9 holds the work (sent back or blocked); below 0 is rejected. */
 export function isHeld(stage?: string | null): boolean {
   const n = stageNumber(stage);

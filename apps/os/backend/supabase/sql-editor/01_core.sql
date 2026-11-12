@@ -1,4 +1,4 @@
--- SQL editor paste 1 of 15: 0001_core.sql
+-- SQL editor paste 1 of 21: 0001_core.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

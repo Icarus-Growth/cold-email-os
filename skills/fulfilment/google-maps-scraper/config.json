@@ -1,0 +1,19 @@
+{
+  "_about": "Rules you may change. A search = one keyword in one place, for example 'dentist in Austin, TX'.",
+  "country": "us",
+  "_country": "The country code Google Maps searches in: us, ca, gb, au and so on.",
+  "pages_per_search": 1,
+  "_pages_per_search": "More pages find more businesses per search. Each page costs credits.",
+  "results_per_full_page": 10,
+  "credits_per_page": 1,
+  "_credits_per_page": "What one Serper page costs on your plan. Check serper.dev, Dashboard.",
+  "approval_above": 500,
+  "_approval_above": "A run that needs more credits than this waits for a person to approve it.",
+  "batch_size": 500,
+  "max_batches_per_run": 4,
+  "_max_batches_per_run": "A run stops after this many batches. Run it again to do the rest.",
+  "max_attempts": 2,
+  "_max_attempts": "A search that fails is tried again on the next run, up to this many tries in total.",
+  "keep_without_website": false,
+  "_keep_without_website": "false: a business with no website is not saved (cold email needs a domain)."
+}

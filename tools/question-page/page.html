@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Questions</title>
+<!-- The question page. make.py fills SET below from a JSON list of questions and opens the page.
+     Nothing leaves this computer: the answers stay in this browser until you press Copy answers. -->
+<style>
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --fg:#16202b; --muted:#5b6876; --line:#d5dbe2;
+  --accent:#1f5fd1; --accent-fg:#ffffff; --skip:#8a5a00; --skip-soft:#fbf1d9;
+  --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#10161d; --surface:#18212b; --fg:#e8edf2; --muted:#9aa7b5; --line:#2c3947;
+  --accent:#7aa7ff; --accent-fg:#0b1320; --skip:#f0c060; --skip-soft:#3a2f14; color-scheme:dark } }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--body);padding:28px 16px 48px}
+main{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-size:26px;line-height:1.2;margin:0}
+.lede{color:var(--muted);margin:6px 0 0}
+.count{color:var(--muted);font-size:13.5px;margin:4px 0 0}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.q.skipped{border-style:dashed}
+.q.skipped .body{opacity:.45}
+.qhead{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.qhead h2{font-size:17px;line-height:1.3;margin:0;flex:1 1 260px;min-width:0}
+.help{color:var(--muted);font-size:13.5px;margin:0}
+.dest{color:var(--muted);font-size:12px;margin:0}
+.body{display:flex;flex-direction:column;gap:12px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.opt span{display:block;padding:7px 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;background:var(--bg)}
+.opt input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.opt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.skipbox input:checked+span{background:var(--skip-soft);border-color:var(--skip);color:var(--skip)}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+.sub{font-weight:600;font-size:13.5px;margin:0}
+input[type=text],textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:38px}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.out{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.out h2{font-size:17px;margin:0}
+#result{font:13px/1.5 var(--mono);min-height:260px;white-space:pre;overflow:auto}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button{font:600 14px var(--body);border-radius:7px;padding:9px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+button.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+#status{font-size:13.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Questions</h1>
+    <p class="lede" id="intro"></p>
+    <p class="lede">Answer what you can. Press "Skip / leave for now" on anything you want to answer later. Then press Copy answers and paste the text into the chat. Never type a key, token or password here.</p>
+    <p class="count" id="count" role="status"></p>
+  </header>
+  <div id="qs" style="display:flex;flex-direction:column;gap:18px"></div>
+  <section class="out">
+    <h2>Your answers, ready to paste</h2>
+    <textarea id="result" readonly aria-label="Your answers as text"></textarea>
+    <div class="bar">
+      <button id="copy" type="button">Copy answers</button>
+      <button id="reset" type="button" class="ghost">Clear all</button>
+      <span id="status" role="status"></span>
+    </div>
+  </section>
+</main>
+<script>
+/* The question set. make.py replaces the null below with the JSON (see README.md for its shape). */
+const SET = /*SET*/null;
+
+const DEST = { about: 'CLAUDE.md, About the business', team: 'CLAUDE.md, The team and roles', decision: 'DECISIONS.md', brain: 'second-brain/INDEX.md and DECISIONS.md', chat: 'the chat only' };
+function lines(s) { return String(s || '').split('\n').map((x) => x.trim()).filter(Boolean); }
+
+/* The answers as plain text (the AI reads this). Pure: tests run it in Node. */
+function answersText(set, state) {
+  const out = ['ANSWERS: ' + set.title, ''];
+  let answered = 0, skipped = 0;
+  set.questions.forEach((q, i) => {
+    const v = state[q.id] || {};
+    out.push((i + 1) + '. ' + q.text + (q.dest ? '  [goes to: ' + (DEST[q.dest] || q.dest) + ']' : ''));
+    if (v._skip) { out.push('   SKIPPED: leave for now'); skipped++; }
+    else {
+      let any = false;
+      q.parts.forEach((p) => {
+        const val = v[p.k];
+        const name = p.label ? p.label.replace(/[:?]\s*$/, '') : 'Answer';
+        if (p.type === 'multi') { if (val && val.length) { any = true; out.push('   ' + name + ': ' + val.join('; ')); } }
+        else if (p.type === 'textarea') { const l = lines(val); if (l.length) { any = true; if (l.length === 1) out.push('   ' + name + ': ' + l[0]); else { out.push('   ' + name + ':'); l.forEach((x) => out.push('     - ' + x)); } } }
+        else if (val && String(val).trim()) { any = true; out.push('   ' + name + ': ' + String(val).trim()); }
+      });
+      if (any) answered++; else out.push('   NOT ANSWERED');
+    }
+    if (String(v._comment || '').trim()) out.push('   Comment: ' + v._comment.trim().replace(/\s*\n+\s*/g, ' '));
+    out.push('');
+  });
+  out.push(answered + ' answered, ' + skipped + ' skipped, ' + (set.questions.length - answered - skipped) + ' not answered.');
+  out.push(set.after || 'Write each fact where it says [goes to]. A choice goes in DECISIONS.md as one line: date, question, answer, why. Keep CLAUDE.md at 50 lines or fewer. Ask me about the skipped ones later, not now.');
+  return out.join('\n');
+}
+function counts(set, state) {
+  let done = 0, skip = 0;
+  set.questions.forEach((q) => { const v = state[q.id] || {}; if (v._skip) skip++; else if (q.parts.some((p) => { const x = v[p.k]; return Array.isArray(x) ? x.length : String(x || '').trim(); })) done++; });
+  return { done, skip, total: set.questions.length };
+}
+if (typeof module !== 'undefined') module.exports = { answersText, counts };
+
+if (typeof document !== 'undefined' && SET) {
+  const KEY = 'question-page:' + (SET.id || SET.title);
+  let S = {};
+  try { S = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { S = {}; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* private window: answers live until the tab closes */ } };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const st = (id) => S[id] || (S[id] = {});
+  document.title = SET.title;
+  document.getElementById('title').textContent = SET.title;
+  document.getElementById('intro').textContent = SET.intro || '';
+
+  function render() {
+    document.getElementById('qs').innerHTML = SET.questions.map((q, qi) => {
+      const v = st(q.id);
+      const parts = q.parts.map((p) => {
+        const id = q.id + '-' + p.k, val = v[p.k];
+        const lab = p.label ? '<p class="sub">' + esc(p.label) + '</p>' : '';
+        if (p.type === 'single' || p.type === 'multi') {
+          const t = p.type === 'single' ? 'radio' : 'checkbox';
+          return lab + '<div class="opts" role="group" aria-label="' + esc(p.label || q.text) + '">' + p.opts.map((o, oi) => {
+            const on = p.type === 'single' ? val === o : (val || []).indexOf(o) > -1;
+            return '<label class="opt"><input type="' + t + '" id="' + id + '-' + oi + '" name="' + id + '" data-q="' + q.id + '" data-k="' + p.k + '" data-t="' + p.type + '" value="' + esc(o) + '"' + (on ? ' checked' : '') + '><span>' + esc(o) + '</span></label>';
+          }).join('') + '</div>';
+        }
+        if (p.type === 'textarea') return '<label class="f">' + esc(p.label || 'Your answer') + '<textarea id="' + id + '" rows="2" data-q="' + q.id + '" data-k="' + p.k + '" data-t="text" placeholder="' + esc(p.ph || '') + '">' + esc(val || '') + '</textarea></label>';
+        return '<label class="f">' + esc(p.label || 'Your answer') + '<input type="text" id="' + id + '" data-q="' + q.id + '" data-k="' + p.k + '" data-t="text" placeholder="' + esc(p.ph || '') + '" value="' + esc(val || '') + '"></label>';
+      }).join('');
+      return '<section class="q' + (v._skip ? ' skipped' : '') + '" id="q-' + q.id + '" data-question="' + q.id + '">' +
+        '<div class="qhead"><h2>' + (qi + 1) + '. ' + esc(q.text) + '</h2>' +
+        '<label class="opt skipbox"><input type="checkbox" id="' + q.id + '-skip" data-q="' + q.id + '" data-k="_skip" data-t="flag"' + (v._skip ? ' checked' : '') + '><span>Skip / leave for now</span></label></div>' +
+        (q.help ? '<p class="help">' + esc(q.help) + '</p>' : '') +
+        '<div class="body">' + parts + '</div>' +
+        '<label class="f">Comment (optional)<textarea id="' + q.id + '-comment" rows="1" data-q="' + q.id + '" data-k="_comment" data-t="text" placeholder="Anything the AI must know about this answer">' + esc(v._comment || '') + '</textarea></label>' +
+        (q.dest ? '<p class="dest">The answer goes to ' + esc(DEST[q.dest] || q.dest) + '.</p>' : '') +
+        '</section>';
+    }).join('');
+  }
+  function build() {
+    document.getElementById('result').value = answersText(SET, S);
+    const c = counts(SET, S);
+    document.getElementById('count').textContent = c.done + ' of ' + c.total + ' answered' + (c.skip ? ', ' + c.skip + ' skipped' : '') + '.';
+  }
+  function onChange(e) {
+    const el = e.target, q = el.dataset.q;
+    if (!q) return;
+    const v = st(q), k = el.dataset.k, t = el.dataset.t;
+    if (t === 'flag') { v[k] = el.checked; document.getElementById('q-' + q).classList.toggle('skipped', el.checked); }
+    else if (t === 'single') v[k] = el.value;
+    else if (t === 'multi') { const a = new Set(v[k] || []); if (el.checked) a.add(el.value); else a.delete(el.value); v[k] = Array.from(a); }
+    else v[k] = el.value;
+    save(); build();
+  }
+  const qs = document.getElementById('qs');
+  qs.addEventListener('input', onChange);
+  qs.addEventListener('change', onChange);
+  const status = document.getElementById('status');
+  document.getElementById('copy').addEventListener('click', () => {
+    const ta = document.getElementById('result');
+    const fallback = () => { ta.focus(); ta.select(); status.textContent = 'The text is selected. Press Ctrl+C (Cmd+C on a Mac) to copy it.'; };
+    try { navigator.clipboard.writeText(ta.value).then(() => { status.textContent = 'Copied. Paste it into the chat.'; }, fallback); } catch (e) { fallback(); }
+  });
+  let armed = false;
+  document.getElementById('reset').addEventListener('click', (e) => {
+    if (!armed) { armed = true; e.target.textContent = 'Press again to clear'; setTimeout(() => { armed = false; e.target.textContent = 'Clear all'; }, 3000); return; }
+    S = {}; save(); render(); build(); armed = false; e.target.textContent = 'Clear all'; status.textContent = 'Cleared.';
+  });
+  render(); build();
+}
+</script>
+</body>
+</html>

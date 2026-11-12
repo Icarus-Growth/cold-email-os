@@ -1,4 +1,4 @@
--- SQL editor paste 5 of 15: 0005_access.sql
+-- SQL editor paste 5 of 21: 0005_access.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

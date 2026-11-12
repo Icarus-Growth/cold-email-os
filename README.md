@@ -1,7 +1,7 @@
 # Cold Email Agency OS
 
 A free operating system for a cold email agency: your team, your clients, your boards
-(Tasks, Campaigns), onboarding forms, calls and report numbers, in one place you own.
+(Tasks, Campaigns, Inbox set-ups), onboarding forms, calls and report numbers, in one place you own.
 
 ## What you need
 
@@ -22,6 +22,18 @@ Open the folder in your AI tool (Claude Code, Codex, or another agent) and paste
 3. `docs/3-automations.md`: Slack alerts, a new-client post and a daily summary.
 4. `docs/4-second-brain.md`: a second brain your AI reads before it works.
 5. `docs/5-mcp.md`: the AI connector, so each person's AI works on their own cards.
+6. `docs/6-build-an-automation.md`: the prompt to build any automation from the Agency Automation Menu.
+7. `docs/7-github.md`: puts your OS in a private GitHub repo. Owner and developers only.
+
+## Keys
+
+Every key goes in `.env` (copy `.env.example`). Never commit `.env` and never paste a key into a chat.
+The automations app reads its keys from one Modal secret named `agency-os` (tab 3, Step 7.5):
+`SLACK_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `OS_SHARED_SECRET`,
+`SLACK_ICON_URL` and `MCP_TOKEN_PEPPER`.
+`SUPABASE_PUBLISHABLE_KEY` is new in the Modal secret: the AI connector's `db.read` and `db.write` need it,
+so each person's AI reads and writes with their own access. If you set up the automations before, store the
+secret again with the tab 3 Step 7.5 command, then deploy again (Step 7.6).
 
 ## Use
 

@@ -1,7 +1,7 @@
 """The OS's automations: one Modal app on the agency's own Modal account.
 
     Deploy:   modal deploy apps/os/automations/app.py      (from the repo root)
-    Secret:   agency-os  (SLACK_BOT_TOKEN, SUPABASE_URL, SUPABASE_SECRET_KEY,
+    Secret:   agency-os  (SLACK_BOT_TOKEN, SUPABASE_URL, SUPABASE_SECRET_KEY, SUPABASE_PUBLISHABLE_KEY,
                           OS_SHARED_SECRET, SLACK_ICON_URL, MCP_TOKEN_PEPPER)
     Address:  printed by the deploy, ends in "-web.modal.run". It goes in .env as
               OS_AUTOMATIONS_URL and in the database vault (connect_db.py).
@@ -21,7 +21,9 @@ What calls what:
                           sign-in in the Authorization header. Answers {"server", "key", "url"} or {"revoked"}.
     /mcp/                 the AI connector (mcp_server.py), with "Authorization: Bearer <key>"
     /mcp/s/<key>/         the same, for claude.ai, which takes only an address (Modal logs it)
-    every hour            the daily summary (posts only at the hour in the settings table)
+    POST /summary-now     a button (or any timer) that sends the daily summary now, whatever the hour
+    every hour            the daily summary (posts only at the hour in the settings table), unless
+                          schedule.json says "off" (Modal's free plan: 5 scheduled jobs per account)
 
 Every call except /slack/actions and the AI connector must carry the header
 X-OS-Secret = OS_SHARED_SECRET. The connector checks each person's own key instead.
@@ -57,7 +59,32 @@ image = image.add_local_dir(
     ignore=["inbox", "inbox/**", "raw", "raw/**", "check.py", "PROMPT.md", "**/__pycache__", "**/.keep"],
 )
 
+# The team's skills go in the app too: the AI connector serves them (skills.list, skills.read) and
+# skills that run on Modal run here. Deploy again after a skill changes. (Before any skill exists the
+# repo may have no skills/ folder: then there is nothing to ship.)
+if not modal.is_local() or (REPO / "skills").is_dir():
+    image = image.add_local_dir(
+        str(REPO / "skills"),
+        remote_path="/app/skills",
+        ignore=["**/__pycache__", "*.pyc", "**/tests", "**/tests/**", "**/.env*", "**/node_modules"],
+    )
+
 SECRETS = [modal.Secret.from_name("agency-os")]
+
+
+def summary_schedule() -> "modal.Cron | None":
+    """schedule.json: "hourly" (the default) or "off". Read from the same file here and inside Modal
+    (/app is this folder), so the deploy and the running app agree."""
+    import json
+
+    for folder in (HERE, Path("/app")):
+        f = folder / "schedule.json"
+        if f.is_file():
+            choice = str(json.loads(f.read_text()).get("daily_summary", "hourly")).strip().lower()
+            if choice not in ("hourly", "off"):
+                raise ValueError('schedule.json: daily_summary must be "hourly" or "off"')
+            return None if choice == "off" else modal.Cron("0 * * * *")
+    return modal.Cron("0 * * * *")
 seen = modal.Dict.from_name("agency-os-once", create_if_missing=True)
 
 
@@ -98,9 +125,9 @@ def form_submitted(form_id: str):
     return handle_form_submitted(db, slack, config, seen, form_id)
 
 
-@app.function(image=image, secrets=SECRETS, timeout=600, retries=0, schedule=modal.Cron("0 * * * *"))
+@app.function(image=image, secrets=SECRETS, timeout=600, retries=0, schedule=summary_schedule())
 def daily_summary():
-    """Runs every hour. Posts only at the summary hour on a weekday."""
+    """Runs every hour (unless schedule.json says "off"). Posts only at the summary hour on a weekday."""
     db, slack, config = _setup()
     from daily_summary import run_daily_summary
 
@@ -118,6 +145,21 @@ def summary_now():
     return result
 
 
+@app.function(image=image, secrets=SECRETS, timeout=900, retries=0)
+def run_skill(name: str, args: str = "{}"):
+    """Run one skill from skills/ on Modal. Every skill uses this one function (no new function,
+    no new schedule): modal run apps/os/automations/app.py::run_skill --name <skill> --args '{}'
+    The web address POST /skill/<name> starts it too."""
+    import json
+
+    db, slack, config = _setup()
+    from skills_runner import run_skill as start
+
+    result = start(name, json.loads(args or "{}") if isinstance(args, str) else args, db, slack, config, seen)
+    print(json.dumps(result, default=str)[:4000])
+    return result
+
+
 # --------------------------------------------------------------------------- web
 
 
@@ -126,6 +168,7 @@ def summary_now():
 @modal.asgi_app()
 def web():
     import hmac
+    import json
     import os
 
     from fastapi import FastAPI, Request
@@ -195,6 +238,34 @@ def web():
         from team_invite import handle_team_invite
 
         return await run_in_threadpool(handle_team_invite, db, slack, config, seen, body)
+
+    @api.post("/summary-now")
+    async def on_summary_now(request: Request):
+        # The third choice when the free plan's 5 scheduled jobs are used: a button sends it.
+        if not allowed(request):
+            return denied()
+        await summary_now.spawn.aio()
+        return {"ok": True, "started": True}
+
+    @api.post("/skill/{name}")
+    async def on_skill(name: str, request: Request):
+        # Starts one skill on Modal. The JSON body is the skill's input. The answer comes at once;
+        # the skill posts its own result in Slack (or once to pipeline-errors when it fails).
+        if not allowed(request):
+            return denied()
+        from skills_runner import check
+
+        problem = check(name)
+        if problem:
+            return JSONResponse({"ok": False, "error": problem}, status_code=404 if "No skill" in problem else 400)
+        try:
+            body = await request.json()
+        except Exception:  # noqa: BLE001 - an empty body means no input
+            body = {}
+        if not isinstance(body, dict):
+            return JSONResponse({"ok": False, "error": "The body must be a JSON object (the skill's input)."}, status_code=400)
+        await run_skill.spawn.aio(name, json.dumps(body))
+        return {"ok": True, "started": True, "skill": name}
 
     @api.post("/ping")
     async def on_ping(request: Request):

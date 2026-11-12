@@ -53,6 +53,11 @@ export function connectAI(teamId: string): Promise<AILinkParts> {
   return call<AILinkParts>('ai', { team_id: teamId, action: 'issue' });
 }
 
+/** Post the daily summary in Slack now (Owners and Admins; tab 3, choice 3). */
+export function sendSummary(): Promise<{ sent: boolean }> {
+  return call<{ sent: boolean }>('summary', {});
+}
+
 /** Kill this person's AI link. Their AI stops working with the OS. */
 export function revokeAI(teamId: string): Promise<{ revoked: boolean }> {
   return call<{ revoked: boolean }>('ai', { team_id: teamId, action: 'revoke' });

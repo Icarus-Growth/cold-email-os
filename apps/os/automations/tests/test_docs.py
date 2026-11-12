@@ -155,14 +155,25 @@ def test_tab_5_names_every_action_and_the_document_check():
 
 
 def test_the_document_fields_match_the_database_list():
-    """0014 fills document_fields for the app; mcp_actions.json must name the same fields."""
+    """0014 fills document_fields for the app, and later migrations add to it (ads 0017: the
+    campaign brief). mcp_actions.json must name the same fields."""
     from fakes import MIGRATIONS
 
     files = sorted(MIGRATIONS.glob("*document_fields.sql"))
     if not files:
         pytest.skip("0014 is not in this copy yet")
-    rows = re.findall(r"\(\s*(null|'[a-z_]+')\s*,\s*'([a-z_]+)'\s*,\s*'([^']*)'\s*,\s*(null|'[a-z_]+')\s*\)", files[-1].read_text())
-    db_list = {(b.strip("'") if b != "null" else None, k, label, c.strip("'") if c != "null" else None) for b, k, label, c in rows}
+    row = re.compile(r"\(\s*(null|'[a-z_]+')\s*,\s*'([a-z_]+)'\s*,\s*'([^']*)'\s*,\s*(null|'[a-z_]+')\s*\)")
+    block = re.compile(r"insert\s+into\s+(?:public\.)?document_fields\b.*?;", re.I | re.S)
+    found = {}
+    for f in sorted(MIGRATIONS.glob("*.sql")):
+        if f.name < files[-1].name:
+            continue
+        sql = re.sub(r"--[^\n]*", "", f.read_text())
+        for b in block.findall(sql) if f != files[-1] else [sql]:
+            for board, key, label, link in row.findall(b):
+                board = board.strip("'") if board != "null" else None
+                found[(board, key)] = (label, link.strip("'") if link != "null" else None)
+    db_list = {(b, k, label, c) for (b, k), (label, c) in found.items()}
     ours = {(b, k, d["label"], d.get("link")) for b, s in SPEC["boards"].items() for k, d in s.get("documents", {}).items()}
     ours |= {(None, k, d["label"], d.get("link")) for k, d in CLIENT_DOCS.items()}
     assert db_list and ours == db_list

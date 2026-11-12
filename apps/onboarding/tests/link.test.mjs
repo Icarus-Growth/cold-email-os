@@ -62,6 +62,7 @@ export function fullAnswers(spec, email) {
       : q.type === "single_select" ? q.options[0]
       : q.type === "email" ? email
       : q.type === "url" ? "https://example.com/" + q.id
+      : q.type === "number" ? "12,500"
       : "answer for " + q.id;
   }
   // The controllers' first options must show every show_if question, so the
@@ -373,6 +374,46 @@ async function main() {
     check("...and the stage log records the new client", logged === 1);
     const st = await call("GET", "/state?code=" + s.data.code);
     check("...and its link then works like any other", st.status === 200 && st.data.state.current_step === 1);
+  }
+
+  // --- 13b. a number question: whole numbers only, filed as a number ------------
+  for (const nq of spec.flow.filter((x) => x.type === "number")) {
+    const s0 = await call("POST", "/start", { company_name: "Number Test Co" });
+    const code = s0.data.code;
+    const cl = (await q("select id from clients where form_code = $1", [code]))[0];
+    const page = (v) => {
+      const a = {};
+      for (const x of spec.flow.filter((y) => y.step === nq.step)) a[x.id] = all[x.id];
+      a[nq.id] = v;
+      return call("POST", "/step", { code, step: nq.step, answers: a });
+    };
+    const all = fullAnswers(spec, "num@example.com");
+    for (const bad of ["lots", "-5", "1.5", "20k"]) {
+      const r = await page(bad);
+      check(`'${nq.id}': "${bad}" is refused with a plain message`, r.status === 400 && /whole number/.test(r.body.field_errors[nq.id] || ""));
+    }
+    for (let st = 1; st < spec.steps.length; st++) {
+      const a = {};
+      for (const x of spec.flow.filter((y) => y.step === st)) a[x.id] = all[x.id];
+      if (st === nq.step) a[nq.id] = " 20,000 ";
+      const r = await call("POST", "/step", { code, step: st, answers: a });
+      if (r.status !== 200) check(`page ${st} saves`, false);
+    }
+    const sub = await call("POST", "/submit", { code });
+    await settle();
+    const row = (await formsOf(cl.id))[0];
+    check(`'${nq.id}': " 20,000 " is filed as the number 20000`, sub.status === 200 && row && row.answers[nq.id].value === 20000);
+    const hasCol = (await q("select count(*)::int n from information_schema.columns where table_name = 'clients' and column_name = $1", [nq.id]))[0].n;
+    if (hasCol) {
+      const v = (await q(`select ${nq.id} v from clients where id = $1`, [cl.id]))[0].v;
+      check(`'${nq.id}': the answer lands on the client record (clients.${nq.id} = ${v})`, v === 20000);
+    }
+    if (nq.none_option) {
+      const s1 = await call("POST", "/start", { company_name: "Not Sure Co" });
+      const r = await call("POST", "/step", { code: s1.data.code, step: nq.step,
+        answers: Object.fromEntries(spec.flow.filter((y) => y.step === nq.step).map((x) => [x.id, x.id === nq.id ? nq.none_option.value : all[x.id]])) });
+      check(`'${nq.id}': the "${nq.none_option.value}" tick is accepted`, r.status === 200);
+    }
   }
 
   // --- 13. the secret key stays on the server ---------------------------------

@@ -1,0 +1,13 @@
+{
+  "check_statuses": [
+    "catch-all"
+  ],
+  "send_score": 70,
+  "max_checks_per_person": 4,
+  "credits_per_check": 2,
+  "approval_above": 5,
+  "max_wait_seconds": 30,
+  "workers": 4,
+  "batch_size": 500,
+  "max_batches_per_run": 4
+}

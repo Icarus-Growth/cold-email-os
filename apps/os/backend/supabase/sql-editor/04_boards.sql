@@ -1,4 +1,4 @@
--- SQL editor paste 4 of 15: 0004_boards.sql
+-- SQL editor paste 4 of 21: 0004_boards.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

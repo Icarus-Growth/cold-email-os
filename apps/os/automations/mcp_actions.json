@@ -1,5 +1,6 @@
 {
   "_about": "The AI connector's actions for this agency type (apps/os/automations/mcp_server.py). 'actions' is the full list the connector offers; each board says which column is its name, its stages in order, who works on it, the one 'work link' column and the columns cards.update may change. Stage names must be spelled exactly as in the database; the tests check them. 'documents' on a board and 'client_documents' name the long texts that docs.read and docs.write open: the field key (the same in the app and the database), its label, and the old link column kept for 'paste a link instead'.",
+  "agency_type": "cold-email",
   "actions": [
     "my_queue",
     "urgent",
@@ -16,6 +17,10 @@
     "brain.map",
     "brain.search",
     "brain.read",
+    "brain.list",
+    "skills.list",
+    "skills.read",
+    "db.read",
     "cards.create",
     "cards.move",
     "cards.update",
@@ -23,6 +28,7 @@
     "docs.write",
     "calls.add",
     "metrics.add",
+    "db.write",
     "clients.update"
   ],
   "boards": {
@@ -128,7 +134,8 @@
     "target_market",
     "offer_doc_url",
     "copy_doc_url",
-    "sending_domains"
+    "sending_domains",
+    "monthly_send_volume"
   ],
   "client_documents": {
     "offer_doc": {

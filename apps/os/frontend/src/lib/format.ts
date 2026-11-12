@@ -93,8 +93,9 @@ export function dayKey(d: Date | string | number): string {
   return x.getFullYear() + '-' + pad2(x.getMonth() + 1) + '-' + pad2(x.getDate());
 }
 /** A due date (a day or a timestamp) as one card line: "Late since 08 Oct" (red), "Due today" (amber),
- *  "Due 15 Oct". Null when there is no date. A day is late only once it is over. */
-export function dueLine(v?: string | null, label = 'Due'): { text: string; tone: 'bad' | 'warn' | null; late: boolean } | null {
+ *  "Due 15 Oct". Null when there is no date. A day is late only once it is over.
+ *  canBeLate false (a finished card, or a live one): a past date is a plain "Due 08 Oct", never late. */
+export function dueLine(v?: string | null, label = 'Due', canBeLate = true): { text: string; tone: 'bad' | 'warn' | null; late: boolean } | null {
   if (!v) return null;
   const s = String(v);
   const isDay = /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -102,6 +103,7 @@ export function dueLine(v?: string | null, label = 'Due'): { text: string; tone:
   if (isNaN(t)) return null;
   const day = isDay ? s : dayKey(t);
   const today = dayKey(new Date());
+  if (t < Date.now() && !canBeLate) return { text: label + ' ' + dateShort(isDay ? s + 'T12:00:00' : s), tone: null, late: false };
   if (t < Date.now()) return { text: 'Late since ' + dateShort(isDay ? s + 'T12:00:00' : s), tone: 'bad', late: true };
   if (day === today) return { text: label + ' today', tone: 'warn', late: false };
   return { text: label + ' ' + dateShort(isDay ? s + 'T12:00:00' : s), tone: null, late: false };

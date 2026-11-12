@@ -44,6 +44,17 @@ const URL_RE = /^(https?:\/\/)?[^\s.]+\.[^\s]{2,}$/i;
 const CODE_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const MAX_TEXT = 20000;   // one answer, in characters
 const MAX_ITEMS = 50;     // one multi_select answer
+const MAX_NUMBER = 1000000000;  // a number answer: whole, 0 or more, below this
+
+/* A number answer as typed ("20,000", "20 000") -> 20000, or null if it is not a
+   whole number of 0 or more. */
+function wholeNumber(value) {
+  if (typeof value === "number") return Number.isInteger(value) && value >= 0 && value < MAX_NUMBER ? value : null;
+  const s = String(value == null ? "" : value).trim().replace(/[\s,']/g, "");
+  if (!/^[0-9]{1,9}$/.test(s)) return null;
+  const n = Number(s);
+  return n < MAX_NUMBER ? n : null;
+}
 
 /* ---------- small helpers ------------------------------------------------ */
 
@@ -113,6 +124,7 @@ function validate(q, value) {
   const s = String(value).trim();
   if (q.type === "email" && !EMAIL_RE.test(s)) return "please enter a valid email address";
   if (q.type === "url" && !URL_RE.test(s)) return "please enter a valid web address";
+  if (q.type === "number" && wholeNumber(s) === null) return "please enter a whole number, for example 20000";
   if (q.type === "single_select" && !(q.options || []).includes(s)) {
     return "please choose one of: " + (q.options || []).join(", ");
   }
@@ -194,6 +206,7 @@ function filedAnswers(answers) {
     if (!e || !visible(q, flat)) return;
     out[q.id] = { n: n + 1, step: q.step, label: q.label, type: q.type, value: e.value };
     if (noneValue(q) && e.value === noneValue(q)) out[q.id].none = true;
+    else if (q.type === "number" && wholeNumber(e.value) !== null) out[q.id].value = wholeNumber(e.value);
   });
   return out;
 }

@@ -11,16 +11,14 @@
     "campaigns": {
       "label": "Campaigns",
       "final": [
-        "50 - Live",
         "100 - Ended"
       ]
     },
     "inbox_batches": {
-      "label": "Inbox batches",
+      "label": "Inbox set-ups",
       "final": [
         "100 - Ready To Send"
-      ],
-      "link": "client"
+      ]
     }
   },
   "client_roles": [

@@ -1,10 +1,11 @@
-/* Tests for the two Team server steps (functions/api/team/add.js and resend.js).
+/* Tests for the Team server steps (functions/api/team/add.js, resend.js, ai.js and summary.js).
  * No network: fetch is replaced by a fake Supabase and a fake automations app.
  * Run: npm test  (Node 18 or newer). */
 import assert from 'node:assert/strict';
 import { onRequestPost as add } from '../functions/api/team/add.js';
 import { onRequestPost as resend } from '../functions/api/team/resend.js';
 import { onRequestPost as ai, linkParts } from '../functions/api/team/ai.js';
+import { onRequestPost as summary } from '../functions/api/team/summary.js';
 import { tempPassword } from '../functions/_lib/team.js';
 
 const SB = 'https://example.supabase.co';
@@ -29,6 +30,11 @@ function fake(opts) {
     calls.push({ url: u, method, body, headers });
     const ok = (data, status) => new Response(JSON.stringify(data), { status: status || 200 });
     if (u.origin !== SB) {
+      if (u.pathname === '/summary-now') {
+        if (o.summaryDown) throw new TypeError('fetch failed');
+        if (o.summaryStatus) return ok({ ok: false, error: 'not allowed' }, o.summaryStatus);
+        return ok({ ok: true, started: true });
+      }
       if (u.pathname === '/mcp/token') {
         if (o.mcpDown) throw new TypeError('fetch failed');
         if (o.mcpError) return ok({ error: o.mcpError }, 403);
@@ -259,11 +265,11 @@ test("The box's lines are tab 5's lines, with the real server and key", async ()
   if (!process.features.typescript) return;
   const { aiSetup, WEB_WARNING, WEB_PLANS } = await import('../src/lib/ailink.ts');
   const s = aiSetup({ server: 'https://x--os.modal.run/mcp/', key: 'K3y_-', url: 'https://x--os.modal.run/mcp/s/K3y_-/' });
-  assert.deepEqual(s.map((x) => x.tool), ['Claude Code', 'Codex', 'Hermes', 'Claude on the web (claude.ai)']);
+  assert.deepEqual(s.map((x) => x.tool), ['Claude on the web (claude.ai)', 'Claude Code', 'Codex', 'Hermes']);
+  assert.equal(s.shift().text, 'https://x--os.modal.run/mcp/s/K3y_-/');
   assert.equal(s[0].text, 'claude mcp add --transport http --scope user agency-os "https://x--os.modal.run/mcp/" --header "Authorization: Bearer K3y_-"');
   assert.equal(s[1].text, '[mcp_servers.agency_os]\nurl = "https://x--os.modal.run/mcp/"\nhttp_headers = { "Authorization" = "Bearer K3y_-" }');
   assert.equal(s[2].text, 'agency_os:\n  url: "https://x--os.modal.run/mcp/"\n  headers:\n    Authorization: "Bearer K3y_-"');
-  assert.equal(s[3].text, 'https://x--os.modal.run/mcp/s/K3y_-/');
   assert.equal(WEB_WARNING, "Modal's log keeps this link. Use it only if nobody else can open your Modal account.");
   assert.match(WEB_PLANS, /^Custom connectors work on the Free \(one connector at most\), Pro and Max plans\. .* use Claude Code, Codex or Hermes instead\.$/);
   /* Only the claude.ai way puts the key in an address. */
@@ -292,6 +298,38 @@ test('Connect your AI: plain answers when it cannot work', async () => {
   const no = await run(ai, 'ai', 'tok-owner', { team_id: MEMBER.id, action: 'issue' }, MCP);
   assert.equal(no.status, 403);
   assert.equal(no.data.error, 'Only an Owner or Admin can do that.');
+});
+
+test("Send today's summary: an Owner or Admin starts it, with the secret; nobody else reaches the automations", async () => {
+  let f = fake();
+  assert.equal((await run(summary, 'summary', 'tok-member', {}, MCP)).status, 403);
+  assert.equal((await run(summary, 'summary', 'tok-stranger', {}, MCP)).status, 403);
+  assert.equal((await run(summary, 'summary', null, {}, MCP)).status, 401);
+  assert.ok(!f.calls.some((c) => c.url.pathname === '/summary-now'), 'a Member never reaches the automations');
+  for (const tok of ['tok-owner', 'tok-admin']) {
+    f = fake();
+    const r = await run(summary, 'summary', tok, {}, MCP);
+    assert.deepEqual([r.status, r.data], [200, { sent: true }]);
+    const call = f.calls.find((c) => c.url.pathname === '/summary-now');
+    assert.equal(call.url.origin, 'https://alerts.example.com');
+    assert.equal(call.method, 'POST');
+    assert.equal(call.headers['X-OS-Secret'], 'shh');
+  }
+});
+
+test("Send today's summary: plain answers when it cannot work", async () => {
+  fake();
+  const off = await run(summary, 'summary', 'tok-owner', {}, ENV);
+  assert.equal(off.status, 409);
+  assert.match(off.data.error, /tab 3/);
+  fake({ summaryDown: true });
+  assert.match((await run(summary, 'summary', 'tok-owner', {}, MCP)).data.error, /Could not reach the automations app/);
+  fake({ summaryStatus: 401 });
+  assert.match((await run(summary, 'summary', 'tok-owner', {}, MCP)).data.error, /OS_SHARED_SECRET is not the same/);
+  fake({ summaryStatus: 404 });
+  assert.match((await run(summary, 'summary', 'tok-owner', {}, MCP)).data.error, /Deploy it again/);
+  const r = await run(summary, 'summary', 'tok-owner', {}, MCP);
+  assert.ok(!JSON.stringify(r.data).includes('shh'), 'the secret never comes back');
 });
 
 let failed = 0;

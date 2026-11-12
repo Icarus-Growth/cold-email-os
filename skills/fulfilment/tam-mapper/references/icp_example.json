@@ -1,0 +1,11 @@
+{
+  "_about": "The ideal customer for one client. Copy this file to clients/<client-name>/icp.json and change it. The tam-mapper reads industries, locations and sizes. The website-classifier reads fit_rule, exclude and sizes.",
+  "industries": [
+    {"name": "Dental practices", "keywords": ["dentist", "dental clinic", "cosmetic dentist"]},
+    {"name": "Orthodontists", "keywords": ["orthodontist"]}
+  ],
+  "locations": ["Austin, TX", "Dallas, TX", "Houston, TX"],
+  "sizes": ["1-10", "11-50"],
+  "exclude": ["hospital", "dental school", "franchise"],
+  "fit_rule": "An independent dental or orthodontic practice that treats patients itself (not a supplier, a school or a hospital department), with its own website, that would want more new patients."
+}

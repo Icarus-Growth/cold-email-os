@@ -11,6 +11,7 @@ personal access token in .env (SUPABASE_ACCESS_TOKEN). It never prints a key.
     python3 apps/os/backend/db.py check              tables, row counts, locks, views, sign-up setting
     python3 apps/os/backend/db.py access             what a signed-in stranger can see (should be 0 everywhere)
     python3 apps/os/backend/db.py schema             write SCHEMAS.md from the live project
+    python3 apps/os/backend/db.py keys               check the tab 1 lines in .env (names only, never values)
 
 If you cannot run this, use the Supabase SQL editor instead. The paste files are in
 apps/os/backend/supabase/sql-editor/ (after the tidy-up: archive/sql-editor/).
@@ -27,15 +28,50 @@ from pathlib import Path
 from typing import Dict, List
 
 ROOT = Path(__file__).resolve().parents[3]
-BOARDS = "Tasks, Campaigns"
+BOARDS = "Tasks, Campaigns, Inbox set-ups"
 API = "https://api.supabase.com/v1/projects"
+
+
+TAB1_KEYS = (
+    "SUPABASE_PROJECT_REF",
+    "SUPABASE_URL",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_SECRET_KEY",
+    "SUPABASE_DB_PASSWORD",
+    "SUPABASE_ACCESS_TOKEN",
+)
+
+
+def env_problems(text: str) -> List[str]:
+    """The lines of .env that break `set -a; . ./.env`. Names only, never a value."""
+    out = []
+    for n, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            out.append(f"line {n}: no '=' on this line. Write NAME=value.")
+            continue
+        name, value = raw.split("=", 1)
+        label = name.strip() or f"line {n}"
+        if name != name.rstrip() or value != value.lstrip():
+            out.append(f"{label} (line {n}): a space before or after '='. Write {name.strip()}=value, with no spaces.")
+        elif not re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
+            out.append(f"line {n}: '{name.strip()}' is not a key name. Use capital letters, numbers and _.")
+        elif re.search(r"\s", value.strip().strip('"').strip("'")):
+            out.append(f"{label} (line {n}): the value has a space in it. Keys and passwords have none: copy it again.")
+    return out
 
 
 def load_env() -> Dict[str, str]:
     env = {}
     path = ROOT / ".env"
     if path.exists():
-        for line in path.read_text().splitlines():
+        text = path.read_text()
+        bad = env_problems(text)
+        if bad:
+            sys.exit(".env has lines the terminal cannot load:\n  " + "\n  ".join(bad))
+        for line in text.splitlines():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
@@ -205,6 +241,9 @@ def cmd_schema() -> None:
         f"- **Boards in the OS:** {BOARDS}. Each board is a table with a stage list; every stage change"
         " is written to `stage_log`.",
         "- **Stage lists** (the numbered stages, in order) are in the last section, \"Stage ladders and lists\".",
+        "- **Finished and live:** only a \"100 - ...\" stage is finished. `v_open_cards.is_live` marks a live stage:"
+        " open, but never stuck or late.",
+        "- **The rules** for any change are in `DATABASE_RULES.md`.",
         "",
     ]
     current = None
@@ -249,6 +288,32 @@ def cmd_add_owner(argv: List[str]) -> None:
     print_rows(query("select full_name, email, access, can_sign_in from public.team where email = " + sql_text(email)))
 
 
+def cmd_keys() -> None:
+    """Every tab 1 name has a value, and no line breaks the terminal. Prints names only."""
+    path = ROOT / ".env"
+    if not path.exists():
+        sys.exit("FAIL: there is no .env file. Copy .env.example to .env, then fill it in.")
+    text = path.read_text()
+    bad = env_problems(text)
+    values = {}
+    for line in text.splitlines():
+        if "=" in line and not line.strip().startswith("#"):
+            k, v = line.split("=", 1)
+            values[k.strip()] = v.strip().strip('"').strip("'")
+    for name in TAB1_KEYS:
+        if not values.get(name):
+            bad.append(f"{name}: no value. Fill it in.")
+        else:
+            print(f"  {name:<26} has a value")
+    pw = values.get("SUPABASE_DB_PASSWORD", "")
+    if pw and not pw.isalnum():
+        bad.append("SUPABASE_DB_PASSWORD: use letters and numbers only (some symbols break `set -a`).")
+    if bad:
+        print("FAIL:\n  " + "\n  ".join(bad))
+        sys.exit(1)
+    print("PASS: every tab 1 key has a value, with no space before or after '='.")
+
+
 def main(argv: List[str]) -> None:
     if len(argv) < 2:
         sys.exit(__doc__)
@@ -267,6 +332,8 @@ def main(argv: List[str]) -> None:
         cmd_access()
     elif name == "schema":
         cmd_schema()
+    elif name == "keys":
+        cmd_keys()
     else:
         sys.exit(__doc__)
 

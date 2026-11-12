@@ -7,9 +7,9 @@ import { Link2, Plus, Trash2, X } from 'lucide-react';
 import type { ChecklistDef, RecordDef } from '../../config';
 import { Button, Notice, RecordPanel, Select, StagePill, TextInput, type SectionSpec } from '../../ui';
 import { insert, move, patch, remove, useData, useQuery, type Data, type Row } from '../../lib/store';
-import { cardPath, isHeld, ladderOf, listOf, nextStage, recordDef } from '../../lib/schema';
-import { closeCard } from '../../lib/router';
-import { confirm, toast } from '../../lib/ui';
+import { BOARDS, cardPath, isHeld, ladderOf, listOf, nextStage, recordDef } from '../../lib/schema';
+import { closeCard, openCard } from '../../lib/router';
+import { confirm, createOpen, toast } from '../../lib/ui';
 import { dateTime, shortStage, wait } from '../../lib/format';
 import { devSection, extraFields, keysOf, sectionSpec } from './fields';
 
@@ -78,6 +78,39 @@ function Checklist({ c, card }: { c: ChecklistDef; card: Row }) {
   );
 }
 
+/** The boards whose cards point at this board's cards (ads: a creative names its campaign). */
+export function linkedBoards(table: string): Array<{ def: RecordDef; key: string }> {
+  const out: Array<{ def: RecordDef; key: string }> = [];
+  BOARDS.forEach((b) => b.sections.forEach((s) => s.fields.forEach((f) => {
+    if (f.type === 'card' && f.board === table) out.push({ def: b, key: f.key });
+  })));
+  return out;
+}
+
+/** The cards on another board that point at this card, with a button to add one. */
+function Linked({ def, keyName, card }: { def: RecordDef; keyName: string; card: Row }) {
+  const S = useData();
+  const rows = S.rows(def.table).filter((r) => r[keyName] === card.id)
+    .sort((a, b) => ladderOf(def).indexOf(String(a[def.stageKey])) - ladderOf(def).indexOf(String(b[def.stageKey])));
+  return (
+    <div className="space-y-1.5" data-linked={def.table}>
+      {!rows.length && <div className="text-[12.5px] text-faint">None yet.</div>}
+      {rows.map((r) => (
+        <button key={r.id} type="button" onClick={() => openCard(def.table, r.id)} data-linked-card={r.id}
+          className="w-full flex items-center gap-2 text-left rounded-[10px] border border-line bg-card px-3 py-2 hover:bg-ground">
+          <span className="flex-1 min-w-0 truncate text-[13px] text-ink">{String(r[def.nameKey] || 'Untitled ' + def.item)}</span>
+          <StagePill stage={r[def.stageKey]} />
+        </button>
+      ))}
+      <div className="pt-1">
+        <Button size="sm" icon={Plus} onClick={() => createOpen.set({ table: def.table, defaults: { client_id: card.client_id, [keyName]: card.id } })}>
+          New {def.item}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /** The stage log of one card, newest first. */
 function History({ table, id }: { table: string; id: string }) {
   const S = useData();
@@ -119,6 +152,9 @@ export function CardPanel({ table, id }: { table: string; id: string }) {
     ...def.sections.map((s) => sectionSpec(S, table, row, s)),
     def.checklist ? { title: def.checklist.label, desc: 'Each one moves from to-do to done. The card moves on its own ladder above.',
                       children: <Checklist c={def.checklist} card={row} /> } : null,
+    ...linkedBoards(table).map((l): SectionSpec => ({
+      title: l.def.item.charAt(0).toUpperCase() + l.def.item.slice(1) + 's in this ' + def.item, desc: 'The ' + l.def.item + ' cards that name this ' + def.item + '. Click one to open it.',
+      children: <Linked def={l.def} keyName={l.key} card={row} /> })),
     extras.length ? sectionSpec(S, table, row, { title: 'More fields', desc: 'Columns this table has that the screens do not name yet.', fields: extras }) : null,
     { title: 'Stage history', desc: 'Every move of this card, written by the database.', fold: true, closed: true, foldKey: 'history',
       children: <History table={table} id={id} /> },

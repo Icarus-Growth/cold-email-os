@@ -6,7 +6,7 @@ import { ExternalLink } from 'lucide-react';
 import type { FieldDef, SectionDef } from '../../config';
 import { LinkRow, RichText, RichView, Select, TextInput, Toggle, type FieldSpec, type SectionSpec } from '../../ui';
 import { patch, type Data, type Row } from '../../lib/store';
-import { listOf } from '../../lib/schema';
+import { cardPath, listOf, recordDef } from '../../lib/schema';
 import { dateLong, dateTime, localStamp, readable } from '../../lib/format';
 import { inApp } from '../../lib/router';
 import { DocField } from '../docs/DocField';
@@ -31,12 +31,40 @@ function monthText(v: unknown): string {
   return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
 
+/** The card a 'card' field points at (archived ones too), or null. */
+export function linkedCard(S: Data, f: FieldDef, v: unknown): Row | null {
+  if (empty(v) || !f.board) return null;
+  return S.allRows(f.board).find((r) => r.id === v) || null;
+}
+
+/** A linked card's name ("Untitled campaign" when it has none, "A card that is gone" when deleted). */
+export function linkedName(S: Data, f: FieldDef, v: unknown): string {
+  const def = recordDef(f.board);
+  const row = linkedCard(S, f, v);
+  if (!row) return 'A card that is gone';
+  return String(row[def ? def.nameKey : 'id'] || 'Untitled ' + (def ? def.item : 'card')) + (row.archived_at ? ' (archived)' : '');
+}
+
+/** The pick list for a 'card' field: the cards of the row's own client (all clients when the
+ *  row has none), not archived, A to Z, plus the one set now. */
+export function cardOptions(S: Data, f: FieldDef, row: Row | null, current?: unknown): Array<[string, string]> {
+  const def = recordDef(f.board);
+  if (!def) return [];
+  const client = row ? row.client_id : null;
+  const list = S.rows(def.table).filter((r) => !client || r.client_id === client)
+    .map((r): [string, string] => [r.id, String(r[def.nameKey] || 'Untitled ' + def.item)])
+    .sort((a, b) => a[1].localeCompare(b[1]));
+  if (current && !list.some((o) => o[0] === current)) list.push([String(current), linkedName(S, f, current)]);
+  return list;
+}
+
 /** The value of a field as text (read only). */
 export function showValue(S: Data, f: FieldDef, v: unknown): string {
   if (empty(v)) return '—';
   switch (f.type) {
     case 'person': return S.teamName(String(v)) || 'Someone not on the team';
     case 'client': return S.clientName(String(v));
+    case 'card': return linkedName(S, f, v);
     case 'date': return dateLong(String(v) + (String(v).length === 10 ? 'T12:00:00' : ''));
     case 'datetime': return dateTime(String(v));
     case 'month': return monthText(v);
@@ -63,7 +91,7 @@ export function clientOptions(S: Data, current?: unknown): Array<[string, string
 }
 
 /** The editor for one field; `save` gets the new value (null when emptied). */
-export function editor(S: Data, f: FieldDef, v: unknown, save: (value: unknown) => void, name: string): ReactNode {
+export function editor(S: Data, f: FieldDef, v: unknown, save: (value: unknown) => void, name: string, row: Row | null = null): ReactNode {
   const text = empty(v) ? '' : String(v);
   const label = f.label;
   switch (f.type) {
@@ -76,6 +104,10 @@ export function editor(S: Data, f: FieldDef, v: unknown, save: (value: unknown) 
     case 'client':
       return <Select aria-label={label} value={text} placeholder={f.required ? 'Pick a client' : 'No client'} options={clientOptions(S, v)}
         onChange={(x) => { if (x || !f.required) save(x || null); }} />;
+    case 'card': {
+      const def = recordDef(f.board);
+      return <Select aria-label={label} value={text} placeholder={'No ' + (def ? def.item : 'card')} options={cardOptions(S, f, row, v)} onChange={(x) => save(x || null)} />;
+    }
     case 'choice': {
       const opts = (f.options || listOf(f.list)).map((o): [string, string] => [o, o]);
       if (text && !opts.some((o) => o[0] === text)) opts.push([text, text]);
@@ -122,6 +154,10 @@ function reader(S: Data, f: FieldDef, v: unknown): FieldSpec {
     const to = '/clients/' + encodeURIComponent(String(v));
     return { k: f.label, desc: f.desc, node: <a href={to} onClick={(e) => inApp(e, to)} className="text-ink2 underline underline-offset-2">{showValue(S, f, v)}</a> };
   }
+  if (f.type === 'card' && !empty(v) && f.board && linkedCard(S, f, v)) {
+    const to = cardPath(f.board, String(v));
+    return { k: f.label, desc: f.desc, node: <a href={to} onClick={(e) => inApp(e, to)} className="text-ink2 underline underline-offset-2">{showValue(S, f, v)}</a> };
+  }
   return { k: f.label, desc: f.desc, v: showValue(S, f, v), tone: empty(v) ? 'mute' : null };
 }
 
@@ -134,7 +170,20 @@ export function fieldSpec(S: Data, table: string, row: Row, f: FieldDef, canEdit
     if (value === v || (empty(value) && empty(v))) return;
     patch(table, row.id, { [f.key]: value }).catch(() => { /* the store put it back and said so */ });
   };
-  return { k: f.label, desc: f.desc, node: editor(S, f, v, save, table + ':' + row.id + ':' + f.key) };
+  const node = editor(S, f, v, save, table + ':' + row.id + ':' + f.key, row);
+  if (f.type === 'card' && !empty(v) && f.board && linkedCard(S, f, v)) {
+    const to = cardPath(f.board, String(v));
+    return { k: f.label, desc: f.desc, node: (
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="flex-1 min-w-0">{node}</div>
+        <a href={to} onClick={(e) => inApp(e, to)} aria-label={'Open ' + f.label}
+          className="shrink-0 inline-flex items-center justify-center w-[34px] h-[34px] rounded-[10px] border border-line bg-card text-ink2 hover:bg-ground">
+          <ExternalLink size={14} />
+        </a>
+      </div>
+    ) };
+  }
+  return { k: f.label, desc: f.desc, node };
 }
 
 /** Who may edit what: true or false for every field, or a test per column. */

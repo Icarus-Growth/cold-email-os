@@ -74,10 +74,15 @@ Cloudflare Pages > Settings > Variables and Secrets:
 
 "Connect your AI" and "Revoke" (`functions/api/team/ai.js`) pass the call on to the automations app's
 `/mcp/token` (tab 5), which makes or kills the person's private AI link. They need `OS_AUTOMATIONS_URL`
-and `OS_SHARED_SECRET`. The box shows, once, the server address (`/mcp/`, not secret), the key, and the lines
-for each AI tool from tab 5, Step 4 (`src/lib/ailink.ts`). Claude Code, Codex and Hermes send the key in
+and `OS_SHARED_SECRET`. The box gives, once, the lines for each AI tool from tab 5, Step 4 (`src/lib/ailink.ts`),
+Claude on the web first. The screen shows the key only as dots and its last 4 characters; each Copy button
+copies the real line (`src/areas/team/AIKeyBox.tsx`, tested in `tests/aikey.test.mjs`). Claude Code, Codex and Hermes send the key in
 an `Authorization: Bearer` header, so it stays out of Modal's request log. Claude on the web takes only
 an address: it gets the `/mcp/s/<key>/` link, with tab 5's warning.
+
+"Send today's summary" on the Dashboard (Owners and Admins, `functions/api/team/summary.js`) calls the
+automations app's `/summary-now` with `OS_SHARED_SECRET`. It posts the daily summary in Slack now, whatever the
+hour: tab 3's choice 3 when the free Modal plan's scheduled jobs are used up.
 
 Only an Active Owner or Admin with "Can sign in" ticked can use them. Only an Owner can add
 another Owner. Each person gets a random temporary password and must choose their own the first

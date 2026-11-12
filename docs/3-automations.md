@@ -4,7 +4,7 @@
 
 ---
 
-You are setting up the automations for a cold email agency's operating system: Slack alerts when a card moves, a post in new-tasks for every new client, and a daily summary. They run as one small app on my own Modal account. The code is already in `apps/os/automations/`. You set it up; you do not write new automation code.
+You are setting up the automations for a cold email agency's operating system: Slack alerts when a card moves, a post in new-tasks for every new client, a daily summary, and each morning one Slack message to each team member with their own open cards. They run as one small app on my own Modal account. The code is already in `apps/os/automations/`. You set it up; you do not write new automation code.
 
 Work through the steps below in order. After each step, tell me what you did in one or two short sentences, then go on. Stop and wait for me only where a step says **STOP**. If a command fails, show me the error in plain words and stop. Do not try a different, riskier way on your own.
 
@@ -50,7 +50,8 @@ The client channels already exist (for example `youragency-client1`). If I have 
 | needs-a-person | A card reaches a stage with nobody set to do it (once a day per card). A person with no Slack account linked is not posted here: the alert names them as plain text, and Step 5 links them | Owner |
 
 1. Ask: "Do you want these names, or other names?" If I change a name, change only `"name"` in `apps/os/automations/channels.json` (keep the key on the left as it is).
-2. Make them: `python3 apps/os/automations/slack_setup.py make-channels`. A channel that already has that name is used, not made again. It saves the channel ids in `channels.json`.
+2. Make them: `python3 apps/os/automations/slack_setup.py make-channels`. It checks all 8 names first, then makes them. A channel that already has that name is used, not made again. It saves the channel ids in `channels.json`.
+   If it says **STOP**, it lists every name that is taken, each on a `TAKEN` line with the reason. Show me that list. A name can be taken by a channel the bot cannot see: a private channel it is not in, or an archived channel. For each one, ask me to choose: open that channel in Slack and type `/invite @<the app>` (or unarchive it), or give it another name in `channels.json`. Then run make-channels again.
 3. Who sits where follows the job, not rank. Ask me who are the makers (the people who do the work) and who are the managers (the people who check it). Then invite them by email, one channel at a time:
    `python3 apps/os/automations/slack_setup.py invite review owner@youragency.com manager@youragency.com`
    I add myself to every channel. The bot is already in each one.
@@ -64,7 +65,7 @@ The client channels already exist (for example `youragency-client1`). If I have 
 
 ## Step 5. Link the team
 
-`python3 apps/os/automations/slack_setup.py link-team`. Show me the list. Anyone "NOT FOUND" uses another email in Slack: ask me for it and fix their email on their team page in the OS, or skip them. Then save: `python3 apps/os/automations/slack_setup.py link-team --save`.
+Each person's morning list goes to them as a Slack direct message, so each person must be linked. `python3 apps/os/automations/slack_setup.py link-team`. Show me the list. Anyone "NOT FOUND" uses another email in Slack: ask me for it and fix their email on their team page in the OS, or skip them. Then save: `python3 apps/os/automations/slack_setup.py link-team --save`.
 
 ## Step 6. My logo on every post
 
@@ -73,7 +74,7 @@ Slack needs a web address for the picture, not the picture itself. So the logo i
 1. Ask me to make a free account at logo.dev and copy the **publishable key** (it starts with `pk_`) into `LOGO_DEV_PUBLISHABLE_KEY` in `.env`.
 2. Ask me for my company's domain (for example `youragency.com`). Get the logo: `python3 apps/os/automations/logo.py fetch youragency.com`. It saves `apps/os/frontend/public/slack-logo.png`.
 3. Open the file so I can see it. **STOP** and ask: "Is this your logo?" If not, ask me for a square PNG of my logo and save it at the same place.
-4. Deploy the OS again, the same way as in tab 2, so the logo is published. Then check the address: `python3 apps/os/automations/logo.py check https://<my OS address>/slack-logo.png`. It must say PASS.
+4. Deploy the OS again, the same way as in tab 2, so the logo is published. Then check the address: `python3 apps/os/automations/logo.py check https://<my OS address>/slack-logo.png`. It must say PASS. A new deploy can take about a minute to show the file, so the check waits 30 seconds and tries again, 3 times, by itself. Only a FAIL after that is a real failure.
 5. Put that address in `SLACK_ICON_URL` in `.env`.
 6. Ask me to use the same PNG as the Slack app's own icon: the app page → Basic Information → Display Information → App icon.
 
@@ -87,15 +88,22 @@ Slack needs a web address for the picture, not the picture itself. So the logo i
 3. Log in once in the browser: `python3 -m modal token new`. Do not ask me for the token; Modal saves it on this computer.
 4. Make the two secrets: `python3 apps/os/automations/connect_db.py secret`. `OS_SHARED_SECRET` is how the database and the OS prove who they are. `MCP_TOKEN_PEPPER` scrambles each person's AI connector key (tab 5). Both are made once and never shown. Never make the pepper again: a new one stops every AI key.
 5. Load `.env` again (rule 6), then store the keys the app needs as one Modal secret called `agency-os`:
-   - Mac or Linux: `python3 -m modal secret create agency-os --force SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN" SUPABASE_URL="$SUPABASE_URL" SUPABASE_SECRET_KEY="$SUPABASE_SECRET_KEY" OS_SHARED_SECRET="$OS_SHARED_SECRET" SLACK_ICON_URL="$SLACK_ICON_URL" MCP_TOKEN_PEPPER="$MCP_TOKEN_PEPPER"`
+   - Mac or Linux: `python3 -m modal secret create agency-os --force SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN" SUPABASE_URL="$SUPABASE_URL" SUPABASE_SECRET_KEY="$SUPABASE_SECRET_KEY" SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" OS_SHARED_SECRET="$OS_SHARED_SECRET" SLACK_ICON_URL="$SLACK_ICON_URL" MCP_TOKEN_PEPPER="$MCP_TOKEN_PEPPER"`
    - PowerShell: the same, with `$env:SLACK_BOT_TOKEN` and so on in place of `$SLACK_BOT_TOKEN`.
    Do not print the values.
 6. Deploy: `python3 -m modal deploy apps/os/automations/app.py`. The output shows a web address that ends in `-web.modal.run`. Put it in `OS_AUTOMATIONS_URL` in `.env`.
-   **If the deploy fails with "reached limit of 5 scheduled functions"** (or any message about a limit on scheduled or cron functions), **STOP** and tell me in plain words: "Modal's free plan allows 5 scheduled jobs in your whole Modal account, and all 5 are used. This app needs one, for the daily summary. Stop one scheduled job you do not need, or upgrade your Modal plan. Then I deploy again." Show me my apps with `python3 -m modal app list`. Stop an app only when I name it: `python3 -m modal app stop <its name>`. Never take the daily summary's schedule out of the code to get round the limit.
+   **If the deploy fails with "reached limit of 5 scheduled functions"** (or any message about a limit on scheduled or cron functions), **STOP**. Modal's free plan allows 5 scheduled jobs in the whole Modal account, for all apps together. This app needs one: the daily summary, which also sends each person their morning list and runs the skills marked `daily: true`. Everything else in this app runs only when called, including every skill in `skills/` (one `run_skill` job for all of them, so a new skill never needs a new scheduled job).
+   1. Show me which app holds each scheduled job: `python3 apps/os/automations/schedules.py`. It reads only. It runs `python3 -m modal app list` (the apps), then `python3 -m modal app info <app>` for each deployed app (its jobs; a job with a cron or "every" line is scheduled), and adds them up. If it fails, run those two commands yourself and show me the lines.
+   2. Tell me in plain words: "All 5 scheduled jobs are used. Here is which app holds each one." Then give me these three choices, and wait for my pick:
+      - **Choice 1. Stop an app I no longer need.** Only an app I name: `python3 -m modal app stop <its name>`. Its scheduled jobs are freed. Then deploy again.
+      - **Choice 2. Free one job in another of my apps.** In that app's own code, I take the schedule off one job I can run another way, or join two jobs into one. Then I deploy that app again, and you deploy this one. Do not change another app's code yourself unless I ask.
+      - **Choice 3. Run the daily summary by hand or from a button.** This app then holds no scheduled job. Set `"daily_summary": "off"` in `apps/os/automations/schedule.json`, then deploy again. Each working morning, someone runs `python3 -m modal run apps/os/automations/app.py::summary_now`, or an Owner or Admin presses **Send today's summary** at the top of the OS Dashboard. The button calls `POST <OS_AUTOMATIONS_URL>/summary-now` with the `X-OS-Secret` header (the same as the other calls) and shows "Sent. Check #daily-summary.", or the error in plain words. It sends the summary and each person's morning list; a second run on the same day sends no second morning list. Write the choice in `DECISIONS.md`.
+   Never take the schedule out of `app.py` itself, and never change the hour to get round the limit. Choice 3 is the only way this app runs without a schedule.
+
 7. Ask me to turn on the Slack buttons: the Slack app page → Interactivity & Shortcuts → On → Request URL: `<OS_AUTOMATIONS_URL>/slack/actions` → Save. Tell me the address to paste. (The buttons open the OS; this only stops Slack from showing a warning next to them.)
 8. Two more apps call the automations: the OS (it sends a new team member their sign-in details in Slack) and the onboarding form (it posts each submitted form in new-tasks). Both deploy scripts take `OS_AUTOMATIONS_URL` and `OS_SHARED_SECRET` from `.env`. Load `.env` again (rule 6), then run both tab 2 deploy commands again (the OS, then the form).
 
-After a change to `channels.json`, `alert_rules.json` or the code, deploy again (6). After a change to a key, run 5 and 6 again.
+After a change to `channels.json`, `alert_rules.json`, the code or a skill in `skills/`, deploy again (6). After a change to a key, run 5 and 6 again.
 
 ## Step 8. Connect the database to Modal
 
@@ -107,11 +115,13 @@ The database already has the two hooks (file `0008_automation_hooks.sql`, applie
 
 ## Step 9. Test it, then remove the test rows
 
-1. **A card move.** Move one example card on the Tasks, Campaigns boards to a review stage (in the OS, or with a database update). Show me the post in the review channel: the client, the card, the stage, one person tagged, and an "Open the card" button that opens that card.
-2. **A new client.** Add one test client: `python3 apps/os/backend/db.py query "insert into public.clients (client_name, is_example) values ('Example Test Client', true)"`. Within a minute, show me the post in new-tasks: the client, the account manager or "Nobody is the account manager yet", and an "Open the client" button. Check that no Slack channel was made.
-3. **A form.** Open the test client's form link (on its page in the OS). Fill in every question marked * with test answers, then submit. Show me the post in new-tasks.
-4. **The daily summary.** Run it once now: `python3 -m modal run apps/os/automations/app.py::summary_now`. Show me the post in daily-summary and its thread. Each person is tagged once.
-5. **Errors.** Show me that pipeline-errors and needs-a-person are quiet, or tell me what each message there asks me to do.
+The bot posts in Slack but cannot read it. So after each test, tell me where to look and what I should see, in this form: "Open Slack, channel X. You should see Y." Then ask me what I saw. If I see nothing, go to the last part of this step.
+
+1. **A card move.** Move one example card on the Tasks, Campaigns, Inbox set-ups boards to a review stage (in the OS, or with a database update). Then tell me: "Open Slack, channel review. You should see a post with the client, the card, the stage, one person tagged, and an Open the card button. Press it: it opens that card."
+2. **A new client.** Add one test client: `python3 apps/os/backend/db.py query "insert into public.clients (client_name, is_example) values ('Example Test Client', true)"`. Then tell me: "Open Slack, channel new-tasks. Within a minute you should see a post for Example Test Client, with the account manager or 'Nobody is the account manager yet', and an Open the client button. No new Slack channel is made."
+3. **A form.** Open the test client's form link (on its page in the OS). Fill in every question marked * with test answers, then submit. Then tell me: "Open Slack, channel new-tasks. You should see a post that the form for Example Test Client was submitted."
+4. **The daily summary and the morning lists.** Run it once now: `python3 -m modal run apps/os/automations/app.py::summary_now`. It prints how many morning lists it sent. Then tell me: "Open Slack, channel daily-summary. You should see today's summary with an Open My Work button, and the lists in its thread. Each person is tagged once. Then open your direct messages with the app (in Slack's left bar, under Apps). If you have open cards, you should see 'Your work, <today>' with your cards, late first, each one a link." Each person with open cards gets one such message. A person who is not linked to Slack (Step 5) gets none, and pipeline-errors names them once.
+5. **Errors.** Tell me: "Open Slack, channels pipeline-errors and needs-a-person. They should be empty. If a message is there, it says what to do." Ask me what each one says.
 6. Remove the test rows, form first: `python3 apps/os/backend/db.py query "delete from public.onboarding_forms where client_id in (select id from public.clients where client_name = 'Example Test Client')"`, then `python3 apps/os/backend/db.py query "delete from public.clients where client_name = 'Example Test Client'"`. Move the example card back.
 
 If a step shows nothing: check pipeline-errors first, then the app's logs: `python3 apps/os/automations/logs.py` (Modal's log, with every AI connector link hidden; stop it with Ctrl+C). Do not read the log with `modal app logs` directly: Modal writes each request's address there, and an AI connector link (tab 5) is an address. **STOP** and tell me in plain words what you found.
@@ -119,15 +129,16 @@ If a step shows nothing: check pipeline-errors first, then the app's logs: `pyth
 ## Step 10. Write it down
 
 1. Run the checks: `python3 -m pytest apps/os/automations/tests tests/test_slack_notify.py`. All must pass. (If pytest is missing: `python3 -m pip install pytest`.)
-2. Add a short "Automations" part to `CLAUDE.md`, then make `AGENTS.md` the same text, word for word:
+2. Add a short "Automations" part at the end of `OS_BUILD_RULES.md`, under "Parts added by the set-up tabs":
    - The automations are one Modal app: `apps/os/automations/app.py`. Deploy with `python3 -m modal deploy apps/os/automations/app.py`.
    - Which stage move posts where: `apps/os/automations/alert_rules.json`. The channels: `apps/os/automations/channels.json`. After a change, run the tests, then deploy.
    - Every Slack post goes through `shared/slack_notify.py` and names itself. The database is read and written through `shared/supabase_client.py`.
    - A new board gets alerts when its table is added to `"boards"` and its stages to the rules in `alert_rules.json`.
    - Switch the database hooks off: `python3 apps/os/automations/connect_db.py off`.
-   Under "Built so far", add: "Automations: Slack alerts, a new-client post in new-tasks and a daily summary at <hour> on weekdays, set up on <date>. The OS never makes or posts in client channels."
-   Both files must stay under 150 lines. Check with `python3 tests/agents_md_check.py`.
-3. Add to `DECISIONS.md`, under today's date: the channel names, who is in each channel, which clients have no linked channel yet, the summary hour and time zone, and anything under "Not built yet".
+   - The daily summary is the app's one scheduled job (`schedule.json`). Modal's free plan allows 5 in the whole account. See them with `python3 apps/os/automations/schedules.py`. Never add a scheduled job.
+   In `CLAUDE.md`, under "Built so far", add: "Automations: Slack alerts, a new-client post in new-tasks and a daily summary at <hour> on weekdays, set up on <date>. The OS never makes or posts in client channels."
+   `CLAUDE.md` stays at 50 lines or fewer, and `AGENTS.md` stays one line. Check with `python3 tests/agents_md_check.py`.
+3. Add to `DECISIONS.md`, one line each (date, question, answer, why): the channel names, who is in each channel, which clients have no linked channel yet, the summary hour and time zone, how the summary starts (on its schedule, or Choice 3 from Step 7.6), and anything under "Not built yet".
 
 ## Step 11. Tell me we are done
 

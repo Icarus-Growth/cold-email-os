@@ -1,4 +1,4 @@
--- SQL editor paste 14 of 15: 0015_document_roles.sql
+-- SQL editor paste 14 of 21: 0015_document_roles.sql
 -- Paste all of this into the Supabase SQL editor and press Run.
 -- Wait for "Success" before you paste the next file.
 

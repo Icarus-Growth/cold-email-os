@@ -12,6 +12,8 @@ import { BOARDS, ladderOf, recordDef } from '../../lib/schema';
 import { navigate, openCard } from '../../lib/router';
 import { clearScreenFilters, filterValue, screenFilters, setScreenFilter } from '../../lib/ui';
 import { shortStage, wait } from '../../lib/format';
+import { sendSummary } from '../../lib/team';
+import { Send } from 'lucide-react';
 
 const Q = (table: string, order?: string) => ({ key: 'dash:' + table, table, ttl: 0, opts: order ? { order } : {} });
 
@@ -35,6 +37,27 @@ function Drill({ S, title, rows, onClose }: { S: Data; title: string; rows: Row[
       <DataTable view="dash:drill" rows={rows} cols={cardCols(S)} defaults={['card', 'client', 'who', 'days']}
         onRowClick={(r) => { onClose(); openCard(r.board, r.card_id); }} empty="Nothing here any more." />
     </Modal>
+  );
+}
+
+
+/** "Send today's summary": posts the daily summary in Slack now. Owners and Admins only (the
+ *  server step checks again). Tab 3, choice 3: the button when the hourly timer is off. */
+function SendSummary() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  async function go() {
+    setBusy(true); setMsg(null);
+    try { await sendSummary(); setMsg({ text: 'Sent. Check #daily-summary.', ok: true }); }
+    catch (e) { setMsg({ text: (e as Error).message, ok: false }); }
+    finally { setBusy(false); }
+  }
+  return (
+    <span className="ml-auto max-[720px]:ml-0 max-[720px]:w-full flex items-center gap-2 flex-wrap" data-send-summary>
+      {msg && <span role="status" className={'text-[12.5px] ' + (msg.ok ? 'text-good' : 'text-bad')} data-summary-result>{msg.text}</span>}
+      <Button size="sm" icon={Send} disabled={busy} onClick={go}
+        title="Post the daily summary in Slack now, whatever the hour">{busy ? 'Sending…' : "Send today's summary"}</Button>
+    </span>
   );
 }
 
@@ -106,6 +129,7 @@ export function Dashboard() {
         <And />
         <FilterPill label="Board" all="All boards" value={board} options={boardOpts} onChange={(v) => setScreenFilter('dash:board', v)} />
         {(client || board) && <Button size="sm" variant="ghost" onClick={() => clearScreenFilters('dash')}>Clear filters</Button>}
+        {S.isAdmin && <SendSummary />}
       </div>
 
       <ScoreGrid scores={[

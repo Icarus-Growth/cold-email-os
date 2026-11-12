@@ -22,6 +22,7 @@ PLAN_ACTIONS = {
     "my_queue", "urgent", "boards", "cards.search", "cards.get", "clients.get", "team", "calls.get", "forms.get",
     "metrics.get", "cards.create", "cards.move", "cards.update", "cards.note", "calls.add", "metrics.add",
     "clients.update", "brain.index", "brain.map", "brain.search", "brain.read", "docs.read", "docs.write",
+    "brain.list", "skills.list", "skills.read", "db.read", "db.write",
 }  # fmt: skip
 OTHER_BOARD = next((b for b in SPEC["boards"] if b != "tasks"), "tasks")
 
@@ -52,6 +53,7 @@ def open_card(card_id, board="tasks", **extra):
         "client_id": "c-1",
         "stage": SPEC["boards"][board]["stages"][1],
         "assignee_id": "t-maker",
+        "on_my_work": True,
         "reviewer_id": None,
         "due_date": None,
         "stage_changed_at": ago(1),
@@ -179,6 +181,13 @@ def test_a_revoked_link_is_refused():
     assert other.identity(token)["known"]  # another container remembers it for up to 60 seconds
     status, out = mcp.token_request({"team_id": member, "action": "revoke"}, "owner@example.com", "x")
     assert (status, out) == (200, {"revoked": True}) and db.tables["team"][1]["mcp_token_hash"] is None
+    gone = [a for a in db.tables["mcp_audit"] if a["action"] == "revoked"]
+    assert [(a["team_id"], a["args"]["reason"], a["ok"]) for a in gone] == [
+        (member, "replaced by a new key", True),  # the old key died when the new one was made
+        (member, "Revoke button", True),
+    ]
+    assert all(a["args"]["by"] == db.tables["team"][0]["full_name"] for a in gone)
+    assert token not in str(db.tables["mcp_audit"])
     assert mcp.run("read", token, "my_queue", {}) == {"ok": False, "error": NO_ACCESS}
     assert other.identity(token)["known"]
     other.clock = lambda: 1000.0 + IDENTITY_TTL_SECONDS
@@ -211,7 +220,11 @@ def test_only_a_signed_in_owner_or_admin_can_make_a_link():
     assert status == 400 and "cannot sign in" in out["error"]
     db.tables["team"][3]["can_sign_in"] = True
     assert mcp.token_request(target, "ana@example.com", "x")[0] == 200
-    assert [a["action"] for a in db.tables["mcp_audit"]] == ["token.issue"]
+    assert [a["action"] for a in db.tables["mcp_audit"]] == ["token.issue"]  # no old key, so nothing revoked
+    assert mcp.token_request(dict(target, action="revoke"), "ana@example.com", "x")[0] == 200
+    assert [a["action"] for a in db.tables["mcp_audit"]] == ["token.issue", "revoked"]
+    assert mcp.token_request(dict(target, action="revoke"), "ana@example.com", "x")[0] == 200  # again: still logged
+    assert db.tables["mcp_audit"][-1]["args"]["reason"] == "Revoke button (no key)"
     assert Connector(db, Registry(SPEC), CFG, "").token_request(target, "ana@example.com", "x")[0] == 500
 
 

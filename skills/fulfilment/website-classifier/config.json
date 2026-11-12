@@ -1,0 +1,21 @@
+{
+  "_about": "Rules you may change. How to judge a site is in references/judge.md. The rule for each client is in its ideal customer file (fit_rule) or in --rule.",
+  "min_confidence": 80,
+  "_min_confidence": "Below this, the answer is 'unsure' and a person checks it.",
+  "usd_per_ai_check": 0.01,
+  "_usd_per_ai_check": "About what one AI check costs. Shown in the approval ask. It is for the default low-cost model; a larger AI_MODEL in .env costs more.",
+  "approval_above": 200,
+  "_approval_above": "A run that needs more AI checks than this waits for a person to approve it.",
+  "fetch_timeout_seconds": 8,
+  "fetch_max_bytes": 300000,
+  "_fetch_max_bytes": "Only the first part of the home page is read.",
+  "min_text_chars": 150,
+  "_min_text_chars": "A page with less text than this is 'error' (too little to judge), not 'not fit'.",
+  "max_page_chars": 6000,
+  "_max_page_chars": "How much of the page text the AI reads.",
+  "workers": 8,
+  "_workers": "Sites checked at the same time.",
+  "batch_size": 500,
+  "max_batches_per_run": 4,
+  "parked_phrases": ["this domain is for sale", "buy this domain", "domain may be for sale", "this domain is parked", "parked free", "domain parking", "the domain name is for sale"]
+}

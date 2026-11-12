@@ -6,13 +6,19 @@
 #   channels:read, groups:read         list channels, to link each client to theirs
 #   channels:join                      join an automation channel you made by hand
 #   users:read, users:read.email       find each team member by their email
-#   im:write                           send a new team member their sign-in details
+#   im:write                           send a new team member their sign-in details, and each
+#                                      person their morning list (a direct message from the app;
+#                                      app_home below shows it under Apps, read only)
 # Tab 3 adds the button address (Interactivity) after the Modal app is deployed.
 display_information:
   name: Cold Email OS
   description: Posts the OS alerts and the daily summary in the automation channels.
   background_color: "#1f2937"
 features:
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: true
   bot_user:
     display_name: Cold Email OS
     always_online: false

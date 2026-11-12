@@ -1,0 +1,12 @@
+{
+  "_read_me": "The set-up rules. Change them here, not in the code.",
+  "price_tolerance_usd": 0,
+  "give_up_hours": {
+    "_read_me": "How long a domain may wait at one point before a person is told. It keeps waiting after that.",
+    "ordered": 72,
+    "nameservers_set": 168,
+    "inboxes_active": 48,
+    "dns_verified": 72
+  },
+  "daily_stages": ["20 - Buying Domains", "30 - Setting Up Inboxes", "40 - Warming"]
+}

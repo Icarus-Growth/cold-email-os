@@ -33,7 +33,7 @@ const DUE_OPTIONS = ['any', 'late', 'today', 'next7', 'between', 'none'];
 type Which = 'you' | 'others';
 type GroupBy = 'none' | 'client' | 'board' | 'stage' | 'due';
 const GROUP_BY: Array<[GroupBy, string]> = [['none', 'None'], ['client', 'Client'], ['board', 'Board'], ['stage', 'Stage'], ['due', 'Due']];
-const DUE_GROUPS = ['Late', 'Today', 'This week', 'Later', 'No date'];
+const DUE_GROUPS = ['Late', 'Today', 'This week', 'Later', 'No date', 'Live'];
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -48,8 +48,9 @@ function stageRank(w: WorkItem): number {
   const i = b < 0 ? -1 : ladderOf(BOARDS[b]).indexOf(w.stage);
   return b * 100 + (i < 0 ? 99 : i);
 }
-/** Late, Today, This week (the next 7 days, as the Due filter counts them), Later, No date. */
+/** Late, Today, This week (the next 7 days, as the Due filter counts them), Later, No date, Live (running, never late). */
 function dueGroup(w: WorkItem, today: string): string {
+  if (w.live) return 'Live';
   if (!w.due) return 'No date';
   if (w.late) return 'Late';
   if (w.due === today) return 'Today';
@@ -101,14 +102,15 @@ function sortFields(S: Data): Array<[string, string, (w: WorkItem) => string | n
 }
 
 /** The due cell: "Late since 08 Oct" / "Due today" / "Due 13 Oct", and with no due date,
- *  how long it has waited in its stage. */
+ *  how long it has waited in its stage. A live card: "Live for 12d" (never late). */
 function when(w: WorkItem, today: string): { text: string; tone: 'bad' | 'warn' | null } {
+  const t = wait(w.since);
+  if (w.live) return { text: t === '—' || t === 'just now' ? 'Live' : 'Live for ' + t, tone: null };
   if (w.due) {
     if (w.late) return { text: 'Late since ' + dateShort(w.due + 'T00:00:00'), tone: 'bad' };
     if (w.due === today) return { text: 'Due today', tone: 'warn' };
     return { text: 'Due ' + dateShort(w.due + 'T00:00:00'), tone: null };
   }
-  const t = wait(w.since);
   return { text: t === '—' ? '—' : t === 'just now' ? 'Waiting under 1h' : 'Waiting ' + t, tone: null };
 }
 
@@ -255,7 +257,7 @@ export function Home() {
 
         <div data-waits="you">
           <DataTable view="home-waits-on-you" rows={rows(S, mine)} cols={mineCols}
-            title={<>Waits on {you}{count(mine.length)}<span className="ml-1.5 font-normal text-[12.5px] text-muted max-[1100px]:hidden" data-order-note>{orderNote('you', 'Late first, then due soonest, then longest in its stage.')}</span></>}
+            title={<>Waits on {you}{count(mine.length)}<span className="ml-1.5 font-normal text-[12.5px] text-muted max-[1100px]:hidden" data-order-note>{orderNote('you', 'Late first, then due soonest, then longest in its stage. Live cards last.')}</span></>}
             defaults={['name', 'board', 'stage', 'client', 'when']}
             rowTone={(r) => (r._w.late ? 'bad' : null)} onRowClick={open} groups={groups(mine, 'you')}
             hidden={['_w']} empty={!id ? 'Pick a person to see their work.' : anyFilter && mineAll.length ? 'Nothing that waits on ' + you + ' matches the filters.' : 'Nothing waits on ' + you + ' right now.'} />
